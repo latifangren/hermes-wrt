@@ -239,6 +239,7 @@ build_package_list() {
         BASE+=" kmod-usb-ohci kmod-usb2 kmod-usb-ehci usb-modeswitch"
         BASE+=" modemmanager modemmanager-rpcd luci-proto-modemmanager libmbim libqmi"
         BASE+=" sms-tool picocom minicom"
+        BASE+=" luci-proto-ncm luci-proto-mbim luci-proto-3g"
     fi
 
     # — Storage —
