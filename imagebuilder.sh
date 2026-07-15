@@ -36,6 +36,8 @@ OP_VARIANT="${3:-$BUILD_VARIANT}"
 SRC_NAME="${OP_SOURCE%:*}"
 SRC_VER="${OP_SOURCE#*:}"
 SRC_BRANCH="${SRC_VER%.*}"
+SRC_MAJOR="${SRC_BRANCH%%.*}"
+SRC_MINOR="${SRC_BRANCH#*.}"
 
 # ── Colors ──
 PURPLE='\033[95m'; BLUE='\033[94m'; GREEN='\033[92m'
@@ -124,8 +126,12 @@ detect_target() {
 # ── Download ImageBuilder ──
 download_ib() {
     step "Downloading ${SRC_NAME} ImageBuilder ${SRC_VER} for ${TARGET_NAME}"
+
+    # Archive format: tar.xz before 24.10, tar.zst from 24.10 onward
     local ext="tar.xz"
-    [[ "${SRC_BRANCH}" == "24.10" || "${SRC_BRANCH}" -ge "24" ]] 2>/dev/null && ext="tar.zst"
+    if [[ "$SRC_MAJOR" -gt 24 ]] || [[ "$SRC_MAJOR" -eq 24 && "$SRC_MINOR" -ge 10 ]]; then
+        ext="tar.zst"
+    fi
     local url="https://downloads.${SRC_NAME}.org/releases/${SRC_VER}/targets/${TARGET_SYS}/${SRC_NAME}-imagebuilder-${SRC_VER}-${TARGET_NAME}.Linux-x86_64.${ext}"
 
     mkdir -p "$MAKE_PATH"
@@ -164,10 +170,16 @@ configure_ib() {
         sed -i "s/CONFIG_TARGET_IMAGES_GZIP=.*/# CONFIG_TARGET_IMAGES_GZIP is not set/" ".config" 2>/dev/null || true
     fi
 
-    # No signature check
+    # Disable signature checks
     sed -i '/option check_signature/s/^/#/' repositories.conf 2>/dev/null || true
-    # Force overwrite
+    # Force overwrite on package install (OPKG)
     sed -i 's/install $(BUILD_PACKAGES)/install $(BUILD_PACKAGES) --force-overwrite --force-downgrade/' Makefile 2>/dev/null || true
+
+    # 25.x uses APK — different force flag
+    if [[ "$SRC_MAJOR" -ge 25 ]]; then
+        sed -i 's/install $(BUILD_PACKAGES)/install $(BUILD_PACKAGES) --allow-downgrades/' Makefile 2>/dev/null || true
+        log "OpenWrt 25.x detected: using APK-compatible flags"
+    fi
 
     ok "ImageBuilder configured (rootfs: ${rootsize}M)"
 }
@@ -350,6 +362,13 @@ main() {
     echo "║ Variant: ${OP_VARIANT}"
     echo "║ Kernel: ${KERNEL_SOURCE} (${KERNEL_VERSION})"
     echo "╚══════════════════════════════════════════╝"
+
+    # Version compatibility note
+    if [[ "$SRC_MAJOR" -ge 25 ]]; then
+        echo "  ℹ️  OpenWrt 25.x uses APK packages — some packages may differ from 24.x"
+    elif [[ "$SRC_MAJOR" -lt 24 ]]; then
+        echo "  ⚠️  Older releases may have limited package availability"
+    fi
 
     detect_target "$OP_DEVICE"
 

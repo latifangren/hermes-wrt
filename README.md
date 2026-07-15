@@ -41,11 +41,14 @@ hermes-wrt/
 
 ### Lokal
 ```bash
-# Build untuk x86-64 (langsung jadi .img.gz)
+# Build untuk OpenWrt 24.10 (x86-64, langsung jadi .img.gz)
 sudo ./make-image.sh openwrt:24.10.0 x86-64 full
 
-# Build untuk TV box (rootfs → pack dengan kernel)
-sudo ./make-image.sh openwrt:24.10.0 s905x3 full
+# Build untuk OpenWrt 25.12 (TV box)
+sudo ./make-image.sh openwrt:25.12.5 s905x3 full
+
+# Build untuk ImmortalWrt
+sudo ./make-image.sh immortalwrt:24.10.0 s905x3 full
 
 # Ganti kernel source
 KERNEL_SOURCE=armarchindo sudo ./make-image.sh openwrt:24.10.0 s905x3 full
@@ -53,6 +56,12 @@ KERNEL_SOURCE=armarchindo sudo ./make-image.sh openwrt:24.10.0 s905x3 full
 # Ganti kernel version
 KERNEL_VERSION=6.12.y sudo ./make-image.sh openwrt:24.10.0 s905x3 full
 ```
+
+### Catatan Versi
+- **OpenWrt 24.x** — pakai OPKG, mature, semua package tersedia
+- **OpenWrt 25.x** — pakai APK, beberapa package mungkin belum ada atau beda nama (cek release notes)
+- **ImmortalWrt** — masih di 24.10 (belum 25.x)
+- Beberapa device TV box mungkin belum support kernel 25.x — pakai kernel ophub/armarchindo
 
 ### GitHub Actions
 Fork repo → klik Actions → pilih workflow → atur device, source, kernel → run.
