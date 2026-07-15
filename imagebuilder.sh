@@ -214,8 +214,8 @@ build_package_list() {
     BASE+=" -dnsmasq dnsmasq-full"
     BASE+=" luci luci-ssl luci-compat luci-base luci-mod-admin-full luci-mod-network"
     BASE+=" luci-mod-status luci-mod-system luci-proto-ipv6 luci-proto-ppp"
-    BASE+=" luci-app-firewall luci-app-opkg luci-app-ttyd luci-app-poweroffdevice"
-    BASE+=" luci-app-log-viewer luci-app-ramfree luci-app-package-manager"
+    BASE+=" luci-app-firewall luci-app-opkg luci-app-ttyd luci-app-poweroff"
+    BASE+=" luci-app-ramfree luci-app-package-manager"
     BASE+=" libiwinfo libiwinfo-data cgi-io"
     BASE+=" ttyd htop bash curl wget-ssl tar unzip unrar gzip jq nano"
     BASE+=" openssh-sftp-server ca-bundle ca-certificates"
@@ -226,7 +226,7 @@ build_package_list() {
     BASE+=" rpcd rpcd-mod-file rpcd-mod-iwinfo rpcd-mod-luci rpcd-mod-rrdns"
     BASE+=" uhttpd uhttpd-mod-ubus px5g-mbedtls"
     [[ "${ENABLE_EXTRAS:-true}" == "true" ]] && \
-        BASE+=" btop fastfetch screen pv httping adb"
+        BASE+=" btop httping"
     BASE+=" luci-app-filebrowser"
 
     # — Modem support —
@@ -248,14 +248,12 @@ build_package_list() {
     fi
 
     # — Storage —
-    BASE+=" luci-app-diskman luci-app-disks-info smartmontools"
+    BASE+=" luci-app-diskman smartmontools"
     BASE+=" kmod-usb-storage kmod-usb-storage-uas ntfs-3g exfat-mkfs exfat-fsck dosfstools"
 
     # — Network extras —
-    BASE+=" luci-app-zerotier tailscale luci-app-tailscale luci-app-cloudflared"
-    BASE+=" internet-detector luci-app-internet-detector internet-detector-mod-modem-restart"
+    BASE+=" luci-app-zerotier tailscale luci-app-cloudflared"
     BASE+=" nlbwmon luci-app-nlbwmon vnstat2 vnstati2 luci-app-vnstat2 netdata"
-    BASE+=" luci-app-netspeedtest luci-app-cpu-status-mini luci-app-temp-status"
 
     # — Theme defaults (official only) —
     BASE+=" luci-theme-bootstrap luci-theme-material"
@@ -291,7 +289,7 @@ build_package_list() {
 
     # — TV box specifics —
     if [[ "$TVBOX" == true ]]; then
-        BASE+=" luci-app-amlogic ath9k-htc-firmware btrfs-progs"
+        BASE+=" ath9k-htc-firmware btrfs-progs"
         BASE+=" hostapd hostapd-utils kmod-ath kmod-ath9k kmod-ath9k-common kmod-ath9k-htc"
         BASE+=" kmod-cfg80211 kmod-crypto-acompress kmod-crypto-crc32c kmod-crypto-hash kmod-fs-btrfs"
         BASE+=" kmod-mac80211 wireless-tools wpa-cli wpa-supplicant"
