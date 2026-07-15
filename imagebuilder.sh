@@ -214,8 +214,8 @@ build_package_list() {
     BASE+=" -dnsmasq dnsmasq-full"
     BASE+=" luci luci-ssl luci-compat luci-base luci-mod-admin-full luci-mod-network"
     BASE+=" luci-mod-status luci-mod-system luci-proto-ipv6 luci-proto-ppp"
-    BASE+=" luci-app-firewall luci-app-opkg luci-app-ttyd luci-app-poweroff"
-    BASE+=" luci-app-log-viewer luci-app-ramfree luci-theme-bootstrap"
+    BASE+=" luci-app-firewall luci-app-opkg luci-app-ttyd luci-app-poweroffdevice"
+    BASE+=" luci-app-log-viewer luci-app-ramfree luci-app-package-manager"
     BASE+=" libiwinfo libiwinfo-data cgi-io"
     BASE+=" ttyd htop bash curl wget-ssl tar unzip unrar gzip jq nano"
     BASE+=" openssh-sftp-server ca-bundle ca-certificates"
@@ -224,7 +224,10 @@ build_package_list() {
     BASE+=" kmod-ipt-nat kmod-tun resolveip zoneinfo-asia zoneinfo-core"
     BASE+=" zram-swap block-mount parted losetup resize2fs"
     BASE+=" rpcd rpcd-mod-file rpcd-mod-iwinfo rpcd-mod-luci rpcd-mod-rrdns"
-    BASE+=" uhttpd uhttpd-mod-ubus px5g-wolfssl"
+    BASE+=" uhttpd uhttpd-mod-ubus px5g-mbedtls"
+    [[ "${ENABLE_EXTRAS:-true}" == "true" ]] && \
+        BASE+=" btop fastfetch screen pv httping adb"
+    BASE+=" luci-app-filebrowser"
 
     # — Modem support —
     if [[ "${ENABLE_MODEM:-true}" == "true" ]]; then
@@ -236,20 +239,29 @@ build_package_list() {
         BASE+=" kmod-usb-ohci kmod-usb2 kmod-usb-ehci usb-modeswitch"
         BASE+=" modemmanager modemmanager-rpcd luci-proto-modemmanager libmbim libqmi"
         BASE+=" sms-tool luci-app-sms-tool-js picocom minicom"
+        BASE+=" luci-proto-ncm luci-proto-xmm luci-proto-atc"
+        BASE+=" luci-app-3ginfo-lite luci-app-modemband luci-app-modeminfo luci-app-mmconfig"
+        BASE+=" luci-app-droidnet luci-app-netmonitor luci-app-lite-watchdog"
+        BASE+=" modeminfo modeminfo-serial-dell modeminfo-serial-fibocom"
+        BASE+=" modeminfo-serial-sierra modeminfo-serial-tw modeminfo-serial-xmm"
+        BASE+=" xmm-modem modemband"
     fi
 
     # — Storage —
     BASE+=" luci-app-diskman luci-app-disks-info smartmontools"
-    BASE+=" kmod-usb-storage kmod-usb-storage-uas ntfs-3g"
+    BASE+=" kmod-usb-storage kmod-usb-storage-uas ntfs-3g exfat-mkfs exfat-fsck dosfstools"
 
     # — Network extras —
     BASE+=" luci-app-zerotier tailscale luci-app-tailscale luci-app-cloudflared"
     BASE+=" internet-detector luci-app-internet-detector internet-detector-mod-modem-restart"
     BASE+=" nlbwmon luci-app-nlbwmon vnstat2 vnstati2 luci-app-vnstat2 netdata"
     BASE+=" luci-app-netspeedtest luci-app-cpu-status-mini luci-app-temp-status"
+    BASE+=" luci-app-eqosplus luci-app-ipinfo"
 
     # — Theme defaults —
-    BASE+=" luci-theme-material luci-theme-argon luci-app-argon-config"
+    BASE+=" luci-theme-bootstrap luci-theme-material"
+    BASE+=" luci-theme-argon luci-app-argon-config"
+    BASE+=" luci-theme-alpha luci-theme-material3"
 
     # — Tunnels —
     if [[ "${ENABLE_TUNNELS:-true}" == "true" ]]; then
@@ -269,7 +281,7 @@ build_package_list() {
             BASE+=" docker docker-compose dockerd luci-app-dockerman"
         [[ "${ENABLE_ADGUARD:-false}" == "true" ]] && \
             BASE+=" adguardhome luci-app-adguardhome"
-        BASE+=" librespeed-go python3-speedtest-cli iperf3-ssl"
+        BASE+=" librespeed-go iperf3-ssl ookla-speedtest"
     fi
 
     # — Source-specific excludes —
