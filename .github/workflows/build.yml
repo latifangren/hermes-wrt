@@ -4,16 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: 'Source (openwrt/immortalwrt:version)'
+        description: 'Source — openwrt/immortalwrt:version. Pake ":latest" untuk auto-detect versi terbaru'
         required: true
-        default: 'openwrt:24.10.0'
-        type: choice
-        options:
-          - openwrt:25.12.5
-          - openwrt:24.10.0
-          - openwrt:23.05.5
-          - immortalwrt:24.10.0
-          - immortalwrt:23.05.4
+        default: 'openwrt:latest'
       device:
         description: 'Device'
         required: true

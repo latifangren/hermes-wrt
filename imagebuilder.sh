@@ -29,12 +29,29 @@ OUT_TVBOX="${OUT_FIRMWARE}/tvbox"
 LOG_FILE="${MAKE_PATH}/build_$(date +%Y%m%d_%H%M%S).log"
 
 # ── Args ──
-OP_SOURCE="${1:-openwrt:24.10.0}"
+OP_SOURCE="${1:-openwrt:latest}"
 OP_DEVICE="${2:-s905x3}"
 OP_VARIANT="${3:-$BUILD_VARIANT}"
 
 SRC_NAME="${OP_SOURCE%:*}"
 SRC_VER="${OP_SOURCE#*:}"
+
+# ── Resolve 'latest' ke versi stabil terbaru ──
+resolve_latest_source() {
+    local base_url="https://downloads.${SRC_NAME}.org/releases/"
+    log "Resolving 'latest' from ${base_url}..."
+    local latest=$(curl -sL "$base_url" | grep -oP 'href="\K[0-9]+\.[0-9]+\.[0-9]+/' | tr -d '/' | sort -V | tail -1)
+    if [[ -n "$latest" ]]; then
+        SRC_VER="$latest"
+        log "  → ${SRC_NAME}:${SRC_VER}"
+    else
+        warn "  Gagal fetch latest, fallback ke ${SRC_VER}"
+    fi
+}
+
+if [[ "${SRC_VER,,}" == "latest" ]]; then
+    resolve_latest_source
+fi
 SRC_BRANCH="${SRC_VER%.*}"
 SRC_MAJOR="${SRC_BRANCH%%.*}"
 SRC_MINOR="${SRC_BRANCH#*.}"
