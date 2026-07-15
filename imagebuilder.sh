@@ -238,13 +238,7 @@ build_package_list() {
         BASE+=" kmod-usb-net-huawei-cdc-ncm kmod-usb-net-cdc-ether kmod-usb-net-rndis"
         BASE+=" kmod-usb-ohci kmod-usb2 kmod-usb-ehci usb-modeswitch"
         BASE+=" modemmanager modemmanager-rpcd luci-proto-modemmanager libmbim libqmi"
-        BASE+=" sms-tool luci-app-sms-tool-js picocom minicom"
-        BASE+=" luci-proto-ncm luci-proto-xmm luci-proto-atc"
-        BASE+=" luci-app-3ginfo-lite luci-app-modemband luci-app-modeminfo luci-app-mmconfig"
-        BASE+=" luci-app-droidnet luci-app-netmonitor luci-app-lite-watchdog"
-        BASE+=" modeminfo modeminfo-serial-dell modeminfo-serial-fibocom"
-        BASE+=" modeminfo-serial-sierra modeminfo-serial-tw modeminfo-serial-xmm"
-        BASE+=" xmm-modem modemband"
+        BASE+=" sms-tool picocom minicom"
     fi
 
     # — Storage —
@@ -256,19 +250,16 @@ build_package_list() {
     BASE+=" internet-detector luci-app-internet-detector internet-detector-mod-modem-restart"
     BASE+=" nlbwmon luci-app-nlbwmon vnstat2 vnstati2 luci-app-vnstat2 netdata"
     BASE+=" luci-app-netspeedtest luci-app-cpu-status-mini luci-app-temp-status"
-    BASE+=" luci-app-eqosplus luci-app-ipinfo"
 
-    # — Theme defaults —
+    # — Theme defaults (official only) —
     BASE+=" luci-theme-bootstrap luci-theme-material"
-    BASE+=" luci-theme-argon luci-app-argon-config"
-    BASE+=" luci-theme-alpha luci-theme-material3"
 
     # — Tunnels —
     if [[ "${ENABLE_TUNNELS:-true}" == "true" ]]; then
         TUNNEL+=" coreutils-nohup bash dnsmasq-full curl ca-certificates ipset ip-full"
         TUNNEL+=" libcap libcap-bin ruby ruby-yaml kmod-tun kmod-inet-diag unzip kmod-nft-tproxy"
         TUNNEL+=" luci-compat luci luci-base luci-app-openclash"
-        TUNNEL+=" nikki luci-app-nikki"
+        TUNNEL+=" nikki luci-app-nikki mihombreng luci-app-mihombreng"
         TUNNEL+=" chinadns-ng resolveip dns2socks dns2tcp ipt2socks microsocks tcping"
         TUNNEL+=" xray-core xray-plugin luci-app-passwall"
         BASE+=" $TUNNEL"
@@ -304,6 +295,46 @@ build_package_list() {
     echo "${BASE}|${EXCLUDED}|${DISABLED}"
 }
 
+# ── Inject mihombreng prebuilt package ──
+inject_mihombreng() {
+    # Map OpenWrt arch → mihombreng release filename
+    local mih_arch=""
+    case "$ARCH_2" in
+        aarch64) mih_arch="aarch64" ;;
+        arm)     mih_arch="arm"     ;;
+        x86_64)  mih_arch="x86"     ;;
+        i386)    mih_arch="i386"    ;;
+        mips)    mih_arch="mips"    ;;
+        mipsel)  mih_arch="mipsel"  ;;
+        *) warn "No mihombreng package for arch: $ARCH_2"; return 1 ;;
+    esac
+
+    local ext="ipk"
+    [[ "$SRC_MAJOR" -ge 25 ]] && ext="apk"
+
+    local tag_url="https://api.github.com/repos/latifangren/mihombreng/releases/latest"
+    local tag_name
+    tag_name=$(curl -sSL "$tag_url" | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null) || {
+        warn "Failed to get latest mihombreng release tag"
+        return 1
+    }
+
+    local ver="${tag_name#v}"
+    local pkg_name="mihombreng-${ver}-${mih_arch}.${ext}"
+    local lui_name="luci-app-mihombreng-${ver}_all.${ext}"
+    [[ "$ext" == "apk" ]] && lui_name="luci-app-mihombreng-${ver}-all.${ext}"
+
+    local base_url="https://github.com/latifangren/mihombreng/releases/download/${tag_name}"
+    local pkg_dir="${IB_PATH}/packages"
+
+    mkdir -p "$pkg_dir"
+
+    step "Downloading mihombreng ${tag_name} for ${ARCH_2}..."
+    ariadl "${base_url}/${pkg_name}" "${pkg_dir}/${pkg_name}" || return 1
+    ariadl "${base_url}/${lui_name}" "${pkg_dir}/${lui_name}" || return 1
+    ok "mihombreng packages ready in ${pkg_dir}"
+}
+
 # ── Run make image ──
 run_make() {
     cd "$IB_PATH"
@@ -316,6 +347,7 @@ run_make() {
 
     inject_files
     inject_packages
+    inject_mihombreng || true
 
     step "Running make image..."
     mkdir -p "out_firmware" "out_rootfs"
