@@ -1,64 +1,96 @@
 # Hermes-WRT
 
-Custom OpenWrt/ImmortalWrt builder for TV boxes (Amlogic/Rockchip/Allwinner) and official devices (x86-64, Raspberry Pi, etc.).
+Custom OpenWrt/ImmortalWrt builder untuk TV box (Amlogic/Rockchip/Allwinner) dan device official (x86-64, Raspberry Pi, etc).
 
-## Konsep
+## Arsitektur Dual-Path
 
 ```
-Source (OpenWrt / ImmortalWrt)
-  └── Official ImageBuilder
-        ├── + custom files/      (theme, config, script)
-        ├── + custom packages/   (ipk tambahan)
-        ├── + kernel ophub      (khusus TV box)
-        └── Output: .img.gz siap pakai
+Hermes-WRT
+  │
+  ├── Device official (x86-64, RPi, generic armsr)
+  │     └── ImageBuilder → .img.gz langsung jadi
+  │
+  └── TV Box (Amlogic, Rockchip, Allwinner, ...)
+        ├── ImageBuilder → rootfs.tar.gz
+        └── Packing Layer → .img.gz
+              ├── Kernel: ophub (default)
+              ├── Kernel: armarchindo
+              ├── Kernel: custom URL
+              └── Kernel: local directory
 ```
 
-**Bedanya dengan ophub:** Hermes-WRT **build dari source** via ImageBuilder, bukan packaging ulang rootfs. Lo kontrol penuh package bawaan.
+**Official device:** kernel dari OpenWrt/ImmortalWrt resmi, langsung jadi.
+**TV box:** rootfs dari ImageBuilder × kernel dari sumber yang bisa dipilih → di-pack jadi image.
 
 ## Struktur
 
 ```
 hermes-wrt/
-├── files/              # Custom files — niru struktur rootfs OpenWrt
-│   └── etc/            #   etc/config/* → config bawaan
-│       └── config/     #   usr/lib/lua/luci/themes/ → tema custom
-├── packages/           # Taruh custom .ipk di sini
-├── scripts/            # Helper modules
-├── imagebuilder.sh     # Main build script
-├── make-image.sh       # Local build wrapper
-└── .github/workflows/  # GitHub Actions pipeline
+├── hermes.conf          # Konfigurasi kernel & fitur
+├── imagebuilder.sh      # Main build script (dual-path)
+├── make-image.sh        # Local build wrapper
+├── scripts/
+│   ├── INCLUDE.sh       # Shared functions
+│   └── PACKER.sh        # Kernel download & TV box packing
+├── files/               # Custom files (siap diisi)
+├── packages/            # Custom .ipk
+└── .github/workflows/   # GitHub Actions pipeline
 ```
 
 ## Cara Pakai
 
 ### Lokal
 ```bash
-sudo ./make-image.sh openwrt:24.10.0 s905x3
+# Build untuk x86-64 (langsung jadi .img.gz)
+sudo ./make-image.sh openwrt:24.10.0 x86-64 full
+
+# Build untuk TV box (rootfs → pack dengan kernel)
+sudo ./make-image.sh openwrt:24.10.0 s905x3 full
+
+# Ganti kernel source
+KERNEL_SOURCE=armarchindo sudo ./make-image.sh openwrt:24.10.0 s905x3 full
+
+# Ganti kernel version
+KERNEL_VERSION=6.12.y sudo ./make-image.sh openwrt:24.10.0 s905x3 full
 ```
 
 ### GitHub Actions
-Fork repo → klik Actions → pilih workflow → pilih device + source + tunnel → run.
+Fork repo → klik Actions → pilih workflow → atur device, source, kernel → run.
+
+## Kernel Configuration
+
+Edit `hermes.conf` atau set environment variable:
+
+| Variable | Default | Options |
+|----------|---------|---------|
+| `KERNEL_SOURCE` | `ophub` | `ophub`, `armarchindo`, `custom`, `local` |
+| `KERNEL_VERSION` | `auto` | `auto`, `6.12.y`, `6.6.y`, dll |
+| `KERNEL_URL` | — | Required saat `KERNEL_SOURCE=custom` |
+| `KERNEL_DIR` | — | Path lokal saat `KERNEL_SOURCE=local` |
+| `PACKER` | `remake` | `remake`, `ulo`, `custom` |
+| `ENABLE_MODEM` | `true` | `true`/`false` |
+| `ENABLE_TUNNELS` | `true` | `true`/`false` |
+| `ENABLE_DOCKER` | `false` | `true`/`false` |
 
 ## Device Support
 
 | Kategori | Device |
 |----------|--------|
-| **Amlogic** | s905x, s905x2, s905x3, s905x4, s912, s905d, s905l3a, dll |
-| **Rockchip** | RK3566 (Orange Pi 3B), RK3588(S) (Orange Pi 5/5 Plus) |
+| **Amlogic** | s905x, s905x2, s905x3, s905x4, s905d, s905l3a, s912, s922x, a311d |
+| **Rockchip** | RK3566, RK3588, RK3588S (Orange Pi 3B/5/5+) |
 | **Allwinner** | H5, H6, H616, H618 (Orange Pi series) |
 | **Raspberry Pi** | Pi 3B/3B+, Pi 4B/400, Pi Zero 2/W |
 | **x86-64** | Generic PC/UEFI |
 
 ## Custom Files
 
-Taruh file di `files/` dengan struktur rootfs. Contoh:
+Taruh file di `files/` dengan struktur rootfs OpenWrt. Contoh:
 ```
 files/
-├── etc/
-│   ├── config/             # config bawaan
-│   ├── banner              # login banner
-│   ├── rc.local            # startup script
-│   └── uci-defaults/       # one-time setup
-├── usr/lib/lua/luci/themes/hermes/  # tema custom
-└── root/install-custom.sh
+├── etc/config/              # default config
+├── etc/banner               # login banner
+├── etc/rc.local             # startup script
+├── etc/uci-defaults/        # one-time setup (run once at first boot)
+├── usr/lib/lua/luci/themes/ # custom luci themes
+└── root/install.sh
 ```
