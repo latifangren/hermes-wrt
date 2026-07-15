@@ -189,6 +189,13 @@ configure_ib() {
 
     # Disable signature checks
     sed -i '/option check_signature/s/^/#/' repositories.conf 2>/dev/null || true
+
+    # Add custom repos
+    if [[ "$SRC_NAME" == "openwrt" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
+        # Add kiddin9 custom packages feed
+        echo "src/gz kiddin9 https://dl.openwrt.ai/releases/${SRC_BRANCH}/packages/${ARCH_3}/kiddin9" >> repositories.conf
+    fi
+
     # Force overwrite on package install (OPKG)
     sed -i 's/install $(BUILD_PACKAGES)/install $(BUILD_PACKAGES) --force-overwrite --force-downgrade/' Makefile 2>/dev/null || true
 
