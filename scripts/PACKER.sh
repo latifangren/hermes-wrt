@@ -152,25 +152,47 @@ download_kernel_ophub() {
     local out="$1" ver="${2:-auto}"
     step "  Kernel from ophub (${ver})"
     if [[ "$ver" == "auto" ]]; then
-        local tags=$(curl -sL "https://api.github.com/repos/ophub/kernel/releases/tags/kernel_stable" \
-            | grep -oE '"name": "[^"]+"' | cut -d'"' -f4 | head -5)
-        ver=$(echo "$tags" | grep -oE '6\.[0-9]+\.[0-9]+' | head -1)
-        [[ -z "$ver" ]] && ver="6.12.0"
+        # Fetch release tags, fallback to 6.12.95 if rate-limited or fails
+        local tags
+        tags=$(curl -sL "https://api.github.com/repos/ophub/kernel/releases/tags/kernel_stable" 2>/dev/null \
+            | grep -oE '"name": "[^"]+"' || true)
+        
+        if [[ -n "$tags" ]]; then
+            ver=$(echo "$tags" | cut -d'"' -f4 | grep -oE '6\.[0-9]+\.[0-9]+' | sort -V | tail -1 || true)
+        fi
+        [[ -z "$ver" ]] && ver="6.12.95"
         log "    Auto-selected: ${ver}"
     fi
 
+    # Downloader logic:
+    # 1. Download the unified package (e.g. 6.12.95.tar.gz)
+    # 2. Extract it to staging
+    # 3. Inside it, extract boot-[ver]-ophub.tar.gz, dtb-[family]-[ver]-ophub.tar.gz, and modules-[ver]-ophub.tar.gz
     local base="https://github.com/ophub/kernel/releases/download/kernel_stable"
-    local files=(
-        "boot-${ver}.tar.gz"
-        "dtb-${DEV_FAMILY}-${ver}.tar.gz"
-        "modules-${ver}.tar.gz"
-    )
+    local pack_file="${ver}.tar.gz"
 
     mkdir -p "$out"
-    for f in "${files[@]}"; do
-        log "    Downloading ${f}..."
-        ariadl "${base}/${f}" "${out}/${f}" 2>/dev/null || warn "Failed: ${f}"
+    step "    Downloading unified kernel package: ${pack_file}..."
+    ariadl "${base}/${pack_file}" "${out}/${pack_file}"
+
+    step "    Extracting unified kernel package..."
+    tar -xf "${out}/${pack_file}" -C "$out"
+    rm -f "${out}/${pack_file}"
+
+    # Move content of subfolder to root out
+    cp -rf "$out/${ver}"/* "$out/"
+    rm -rf "$out/${ver}"
+
+    # Now we have three tarballs in $out: e.g. boot-6.12.95-ophub.tar.gz, dtb-amlogic-6.12.95-ophub.tar.gz, modules-6.12.95-ophub.tar.gz
+    # Rename them so extract_kernel_tars can find & extract them as usual
+    for f in "$out"/*.tar.gz; do
+        [[ -f "$f" ]] || continue
+        # Rename option to clean name format: e.g. boot-6.12.95-ophub.tar.gz -> boot-6.12.95.tar.gz
+        local base_f=$(basename "$f")
+        local new_f=$(echo "$base_f" | sed 's/-ophub//')
+        mv "$f" "$out/$new_f"
     done
+
     extract_kernel_tars "$out"
 }
 
