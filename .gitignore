@@ -1,4 +1,5 @@
-*.log
 imagebuilder/
-tmp/
+*.log
 out/
+.pack_staging/
+tmp/

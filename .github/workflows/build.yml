@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: Source (openwrt/immortalwrt:version)
+        description: 'Source (openwrt/immortalwrt:version)'
         required: true
-        default: openwrt:24.10.0
+        default: 'openwrt:24.10.0'
         type: choice
         options:
           - openwrt:25.12.5
@@ -15,12 +15,11 @@ on:
           - immortalwrt:24.10.0
           - immortalwrt:23.05.4
       device:
-        description: Target device
+        description: 'Device'
         required: true
-        default: all
+        default: 's905x'
         type: choice
         options:
-          - all
           - s905x
           - s905x2
           - s905x3
@@ -37,52 +36,61 @@ on:
           - bcm2711-rpi-4b
           - x86-64
       variant:
-        description: Firmware variant
+        description: 'Firmware variant'
         required: true
-        default: full
+        default: 'simple'
         type: choice
         options:
           - full
           - simple
+          - minimal
       kernel_source:
-        description: Kernel source (TV box only)
+        description: 'Kernel source (TV box path)'
         required: true
-        default: ophub
+        default: 'ophub'
         type: choice
         options:
           - ophub
           - armarchindo
-          - stable
+          - sib0ndt
+          - custom
       kernel_version:
-        description: Kernel version (auto = latest stable)
+        description: 'Kernel version (auto = latest stable)'
         required: true
-        default: auto
+        default: 'auto'
+      disk_size:
+        description: 'Total disk image size'
+        required: true
+        default: '1G'
+        type: choice
+        options:
+          - 512M
+          - 1G
+          - 2G
+          - 4G
+          - 8G
+      enable_tunnels:
+        description: 'Include tunnel packages'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      enable_modem:
+        description: 'Include modem packages'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 env:
   TZ: Asia/Jakarta
 
 jobs:
-  prepare:
-    runs-on: ubuntu-22.04
-    outputs:
-      devices: ${{ steps.matrix.outputs.devices }}
-    steps:
-      - name: Build Matrix
-        id: matrix
-        run: |
-          ALL='{"devices":["s905x","s905x2","s905x3","s905x4","s912","h5-orangepi-zeroplus2","h6-orangepi-3","h616-orangepi-zero2","h618-orangepi-zero3","rk3566-orangepi-3b","rk3588s-orangepi-5","rk3588-orangepi-5plus","bcm2710-rpi-3b","bcm2711-rpi-4b","x86-64"]}'
-          if [ "${{ inputs.device }}" = "all" ]; then
-            echo "devices=$(echo $ALL | jq -c '.devices')" >> $GITHUB_OUTPUT
-          else
-            echo "devices=$(jq -nc --arg d '${{ inputs.device }}' '[$d]')" >> $GITHUB_OUTPUT
-          fi
-
   build:
-    needs: [prepare]
-    strategy:
-      fail-fast: false
-      matrix:
-        device: ${{ fromJSON(needs.prepare.outputs.devices) }}
     runs-on: ubuntu-22.04
     steps:
       - name: Cleanup & Install Deps
@@ -91,7 +99,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y build-essential libncurses5-dev zlib1g-dev gawk \
             git gettext libssl-dev rsync wget unzip tar gzip qemu-utils jq \
-            python3 python3-pip aria2
+            python3 python3-pip aria2 parted dosfstools
           sudo timedatectl set-timezone "$TZ"
 
       - name: Checkout
@@ -103,13 +111,16 @@ jobs:
           KERNEL_SOURCE=${{ inputs.kernel_source }}
           KERNEL_VERSION=${{ inputs.kernel_version }}
           BUILD_VARIANT=${{ inputs.variant }}
+          DISK_SIZE=${{ inputs.disk_size }}
+          ENABLE_TUNNELS=${{ inputs.enable_tunnels }}
+          ENABLE_MODEM=${{ inputs.enable_modem }}
           EOF
 
       - name: Build
         id: build
         run: |
           chmod +x imagebuilder.sh
-          if sudo ./imagebuilder.sh "${{ inputs.source }}" "${{ matrix.device }}" "${{ inputs.variant }}"; then
+          if sudo ./imagebuilder.sh "${{ inputs.source }}" "${{ inputs.device }}" "${{ inputs.variant }}"; then
             echo "status=success" >> $GITHUB_OUTPUT
           else
             echo "status=failed" >> $GITHUB_OUTPUT
@@ -120,6 +131,6 @@ jobs:
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: hermes-wrt-${{ matrix.device }}-${{ inputs.variant }}
+          name: hermes-wrt-${{ inputs.device }}-${{ inputs.variant }}
           path: out/*
           retention-days: 7

@@ -1,76 +1,127 @@
 #!/bin/bash
-# scripts/PACKER.sh — Kernel download & TV box image packing backend
+# scripts/PACKER.sh — TV box image packer (hibrid engine)
 # Used by imagebuilder.sh when building for TV box devices
 #
 # Kernel sources:
 #   ophub       → github.com/ophub/kernel (default, most complete)
 #   armarchindo → github.com/armarchindo/kernel
-#   custom      → $KERNEL_URL
-#   local       → $KERNEL_DIR/
+#   sib0ndt     → github.com/sib0ndt/linux (custom Amlogic kernel)
+#   custom      → KERNEL_URL
+#   local       → KERNEL_DIR/
+#
+# Packing methods:
+#   hibrid   → fallocate + parted + losetup (default, gak perlu remake binary)
+#   remake   → ophub remake tool (legacy)
 # ============================================================
 
+# ── Build raw disk image (hibrid method) ──
 pack_tvbox() {
-    step "Packing TV box image (kernel: ${KERNEL_SOURCE})"
-
-    mkdir -p "$OUT_TVBOX"
+    step "Packing TV box image"
+    local disk_img="${OUT_TVBOX}/hermes-wrt-${OP_DEVICE}.img"
     local rootfs_tgz=$(ls "${IB_PATH}/out_rootfs/"*rootfs.tar.gz 2>/dev/null | head -1)
 
-    if [[ -z "$rootfs_tgz" ]]; then
-        warn "No rootfs.tar.gz found in ${IB_PATH}/out_rootfs/"
-        warn "Build ImageBuilder first, or place rootfs.tar.gz manually"
-        return 1
-    fi
+    [[ -z "$rootfs_tgz" ]] && { warn "No rootfs.tar.gz found. Build ImageBuilder first."; return 1; }
+    log "Rootfs: $(basename $rootfs_tgz)"
 
-    log "Using rootfs: $(basename $rootfs_tgz)"
-
-    # Prepare staging
     local stage="${MAKE_PATH}/.pack_staging"
     rm -rf "$stage"
-    mkdir -p "$stage/rootfs" "$stage/kernel"
+    mkdir -p "$stage/rootfs" "$stage/kernel" "$stage/boot"
 
-    # Extract rootfs
-    step "Extracting rootfs..."
-    tar -xzf "$rootfs_tgz" -C "$stage/rootfs" 2>/dev/null
-    ok "Rootfs extracted"
-
-    # Download kernel
+    # ── Step 1: Download kernel ──
+    step "[1/6] Downloading kernel (${KERNEL_SOURCE})..."
     download_kernel "$stage/kernel"
 
-    # Pack (varies by backend)
-    case "$PACKER" in
-        remake)   pack_remake "$stage" ;;
-        ulo)      pack_ulo "$stage" ;;
-        custom)   pack_custom "$stage" ;;
-        *)        pack_remake "$stage" ;;
-    esac
+    # ── Step 2: Create raw disk ──
+    step "[2/6] Creating raw disk image (${DISK_SIZE:-1G})..."
+    rm -f "$disk_img"
+    fallocate -l "${DISK_SIZE:-1G}" "$disk_img"
 
+    # ── Step 3: Partition ──
+    step "[3/6] Partitioning MBR: BOOT (128MB) + ROOTFS (sisa)..."
+    sudo parted -s "$disk_img" mklabel msdos
+    sudo parted -s "$disk_img" mkpart primary fat32 4MiB 132MiB
+    sudo parted -s "$disk_img" mkpart primary ext4 132MiB 100%
+
+    # ── Step 4: Format + mount ──
+    step "[4/6] Mounting + formatting..."
+    local loop_dev=$(sudo losetup -P -f --show "$disk_img")
+    sleep 1
+    mkdir -p "$stage/mnt_boot" "$stage/mnt_rootfs"
+    sudo mkfs.fat -F 32 -n "BOOT" "${loop_dev}p1"   >/dev/null 2>&1
+    sudo mkfs.ext4 -F -L "ROOTFS" "${loop_dev}p2"   >/dev/null 2>&1
+    sudo mount "${loop_dev}p1" "$stage/mnt_boot"
+    sudo mount "${loop_dev}p2" "$stage/mnt_rootfs"
+
+    # ── Step 5: Assemble ──
+    step "[5/6] Assembling image contents..."
+
+    # 5a. Boot files dari repo (per-family)
+    local boot_src="${MAKE_PATH}/boot/${DEV_FAMILY}"
+    if [[ -d "$boot_src" ]]; then
+        log "  Copying boot files (${boot_src})"
+        sudo cp -rf "$boot_src"/* "$stage/mnt_boot/" 2>/dev/null || true
+    fi
+
+    # 5b. Kernel boot/? dtb/ → BOOT partition
+    if [[ -d "$stage/kernel/boot" ]]; then
+        log "  Copying kernel boot files"
+        sudo cp -rf "$stage/kernel/boot"/* "$stage/mnt_boot/" 2>/dev/null || true
+    fi
+    if [[ -d "$stage/kernel/dtb" ]]; then
+        log "  Copying DTB files"
+        mkdir -p "$stage/mnt_boot/dtb"
+        sudo cp -rf "$stage/kernel/dtb"/* "$stage/mnt_boot/dtb/" 2>/dev/null || true
+    fi
+
+    # 5c. Rootfs
+    log "  Extracting rootfs.tar.gz..."
+    sudo tar -xzf "$rootfs_tgz" -C "$stage/mnt_rootfs/" --numeric-owner
+
+    # 5d. Kernel modules
+    if [[ -d "$stage/kernel/modules" ]]; then
+        log "  Installing kernel modules"
+        sudo cp -rf "$stage/kernel/modules"/* "$stage/mnt_rootfs/" 2>/dev/null || true
+    fi
+
+    # 5e. files/ overlay
+    local files_src="${MAKE_PATH}/rootfs"
+    if [[ -d "$files_src" && -n "$(ls -A $files_src)" ]]; then
+        log "  Applying files overlay (rootfs/)"
+        sudo cp -rf "$files_src"/* "$stage/mnt_rootfs/" 2>/dev/null || true
+    fi
+
+    # 5f. mihombreng inject
+    inject_mihombreng_raw "$stage/mnt_rootfs" 2>/dev/null || true
+
+    # ── Step 6: Unmount + compress ──
+    step "[6/6] Unmounting + compressing..."
+    sudo umount "${loop_dev}p1" "${loop_dev}p2"
+    sudo losetup -d "$loop_dev"
+
+    gzip -9 "$disk_img"
     rm -rf "$stage"
+
+    local out_file="${disk_img}.gz"
+    [[ -f "$out_file" ]] || { warn "Failed to create .img.gz"; return 1; }
+    ok "Image ready: $(basename $out_file)"
+    echo "$out_file"
 }
 
-# ════════════════════════════════════════════════════════════
-# Kernel Download (interchangeable backends)
-# ════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════
+# Kernel Download Backends
+# ════════════════════════════════════════════════════════════════
 
 download_kernel() {
     local out="$1"
-    local ver="${KERNEL_VERSION}"
+    local ver="${KERNEL_VERSION:-auto}"
 
-    case "$KERNEL_SOURCE" in
-        ophub)
-            download_kernel_ophub "$out" "$ver"
-            ;;
-        armarchindo)
-            download_kernel_armarchindo "$out" "$ver"
-            ;;
-        stable)
-            download_kernel_stable "$out" "$ver"
-            ;;
-        custom)
-            download_kernel_custom "$out"
-            ;;
-        local)
-            copy_kernel_local "$out"
-            ;;
+    case "${KERNEL_SOURCE:-ophub}" in
+        ophub)        download_kernel_ophub "$out" "$ver" ;;
+        armarchindo)  download_kernel_armarchindo "$out" "$ver" ;;
+        sib0ndt)      download_kernel_sib0ndt "$out" "$ver" ;;
+        stable)       download_kernel_stable "$out" "$ver" ;;
+        custom)       download_kernel_custom "$out" ;;
+        local)        copy_kernel_local "$out" ;;
         *)
             warn "Unknown kernel source: ${KERNEL_SOURCE}. Falling back to ophub."
             download_kernel_ophub "$out" "$ver"
@@ -78,25 +129,18 @@ download_kernel() {
     esac
 }
 
-# ── OPHUB — default, most complete ──
+# ── Ophub (default) ──
 download_kernel_ophub() {
     local out="$1" ver="${2:-auto}"
-    step "Downloading kernel from ophub (${ver})"
-
-    local api_url="https://api.github.com/repos/ophub/kernel/releases/tags/kernel_stable"
-    local dl_url
-
+    step "  Kernel from ophub (${ver})"
     if [[ "$ver" == "auto" ]]; then
-        # Get latest kernel tags
-        local tags=$(curl -sL "$api_url" | grep -oE '"name": "[^"]+"' | cut -d'"' -f4 | head -5)
-        # Pick first 6.x.y match
+        local tags=$(curl -sL "https://api.github.com/repos/ophub/kernel/releases/tags/kernel_stable" \
+            | grep -oE '"name": "[^"]+"' | cut -d'"' -f4 | head -5)
         ver=$(echo "$tags" | grep -oE '6\.[0-9]+\.[0-9]+' | head -1)
         [[ -z "$ver" ]] && ver="6.12.0"
-        log "Auto-selected kernel: ${ver}"
+        log "    Auto-selected: ${ver}"
     fi
 
-    # ophub kernel URL format: github.com/ophub/kernel/releases/download/kernel_stable/
-    # Structure: boot-${ver}.tar.gz + dtb-${ver}.tar.gz + modules-${ver}.tar.gz
     local base="https://github.com/ophub/kernel/releases/download/kernel_stable"
     local files=(
         "boot-${ver}.tar.gz"
@@ -104,137 +148,138 @@ download_kernel_ophub() {
         "modules-${ver}.tar.gz"
     )
 
+    mkdir -p "$out"
     for f in "${files[@]}"; do
+        log "    Downloading ${f}..."
         ariadl "${base}/${f}" "${out}/${f}" 2>/dev/null || warn "Failed: ${f}"
     done
-
-    extract_kernel "$out" "$ver"
+    extract_kernel_tars "$out"
 }
 
-# ── ARMARCHINDO — alternative kernel ──
+# ── Armarchindo ──
 download_kernel_armarchindo() {
     local out="$1" ver="${2:-auto}"
-    step "Downloading kernel from armarchindo (${ver})"
-
+    step "  Kernel from armarchindo (${ver})"
     if [[ "$ver" == "auto" ]]; then
         local latest=$(curl -sL "https://api.github.com/repos/armarchindo/kernel/releases/latest" \
             | grep -oE '"tag_name": "[^"]+"' | cut -d'"' -f4)
         ver="${latest:-6.12.0}"
-        log "Auto-selected kernel: ${ver}"
+        log "    Auto-selected: ${ver}"
     fi
 
     local base="https://github.com/armarchindo/kernel/releases/download/${ver}"
-    local files=(
-        "boot-${ver}.tar.gz"
-        "dtb-${DEV_FAMILY}-${ver}.tar.gz"
-        "modules-${ver}.tar.gz"
-    )
+    local files=("boot-${ver}.tar.gz" "dtb-${DEV_FAMILY}-${ver}.tar.gz" "modules-${ver}.tar.gz")
 
+    mkdir -p "$out"
     for f in "${files[@]}"; do
         ariadl "${base}/${f}" "${out}/${f}" 2>/dev/null || warn "Failed: ${f}"
     done
-
-    extract_kernel "$out" "$ver"
+    extract_kernel_tars "$out"
 }
 
-# ── KERNEL.ORG — mainline stable ──
+# ── Sib0ndt (custom Amlogic kernel) ──
+download_kernel_sib0ndt() {
+    local out="$1" ver="${2:-auto}"
+    step "  Kernel from sib0ndt (${ver})"
+    if [[ "$ver" == "auto" ]]; then
+        local tags=$(curl -sL "https://api.github.com/repos/sib0ndt/linux/releases" \
+            | grep -oE '"tag_name": "[^"]+"' | cut -d'"' -f4 | grep "kernel-amlogic")
+        ver=$(echo "$tags" | head -1)
+        ver="${ver:-kernel-amlogic-7.0.0}"
+        log "    Auto-selected: ${ver}"
+    fi
+
+    local base="https://github.com/sib0ndt/linux/releases/download/${ver}"
+    local files=(
+        "boot-${ver#kernel-amlogic-}.tar.gz"
+        "rootfs-${ver#kernel-amlogic-}.tar.gz"
+    )
+
+    mkdir -p "$out"
+    for f in "${files[@]}"; do
+        ariadl "${base}/${f}" "${out}/${f}" 2>/dev/null || warn "Failed: ${f}"
+    done
+    extract_kernel_tars "$out"
+}
+
+# ── Kernel.org (source only, not prebuilt) ──
 download_kernel_stable() {
     local out="$1" ver="${2:-auto}"
-    step "Downloading kernel from kernel.org (${ver})"
-
+    step "  Kernel from kernel.org (${ver})"
     if [[ "$ver" == "auto" ]]; then
-        # Get latest stable version
         ver=$(curl -sL "https://www.kernel.org/releases.json" \
-            | grep -oE '"version": "([0-9]+\.[0-9]+\.?[0-9]*)"' \
-            | head -1 | cut -d'"' -f4)
+            | grep -oE '"version": "([0-9]+\.[0-9]+\.?[0-9]*)"' | head -1 | cut -d'"' -f4)
         [[ -z "$ver" ]] && ver="6.12"
-        log "Auto-selected kernel: ${ver}"
+        log "    Selected: ${ver}"
     fi
-
-    # Download kernel source (mainline)
-    local url="https://cdn.kernel.org/pub/linux/kernel/v${ver%%.*}.x/linux-${ver}.tar.xz"
-    ariadl "$url" "${out}/linux-${ver}.tar.xz" || warn "Failed to download kernel source"
-
-    warn "kernel.org download provides source, not pre-built."
-    warn "For pre-built kernels, use ophub or armarchindo."
+    warn "  kernel.org provides source, not pre-built boot/modules archives."
+    warn "  Use ophub, armarchindo, or sib0ndt for Amlogic TV boxes."
 }
 
-# ── CUSTOM URL ──
+# ── Custom URL ──
 download_kernel_custom() {
     local out="$1"
-    step "Downloading kernel from custom URL"
-    if [[ -z "$KERNEL_URL" ]]; then
-        fail "KERNEL_URL not set. Set it in hermes.conf or export KERNEL_URL=..."
+    if [[ -z "${KERNEL_URL:-}" ]]; then
+        warn "KERNEL_URL not set. Skipping."
+        return 1
     fi
+    mkdir -p "$out"
     ariadl "$KERNEL_URL" "${out}/custom-kernel.tar.gz"
     tar -xzf "${out}/custom-kernel.tar.gz" -C "$out" 2>/dev/null || true
 }
 
-# ── LOCAL ──
+# ── Local ──
 copy_kernel_local() {
     local out="$1"
-    step "Copying kernel from local: ${KERNEL_DIR}"
-    if [[ -z "$KERNEL_DIR" || ! -d "$KERNEL_DIR" ]]; then
-        fail "KERNEL_DIR not found: ${KERNEL_DIR}"
+    if [[ -z "${KERNEL_DIR:-}" || ! -d "$KERNEL_DIR" ]]; then
+        warn "KERNEL_DIR not found: ${KERNEL_DIR:-unset}. Skipping."
+        return 1
     fi
+    mkdir -p "$out"
     cp -rf "$KERNEL_DIR/." "$out/" 2>/dev/null
-    ok "Kernel copied from $KERNEL_DIR"
 }
 
-# ── Extract kernel files ──
-extract_kernel() {
-    local out="$1" ver="$2"
-    step "Extracting kernel artifacts"
+# ── Extract kernel tarballs ──
+extract_kernel_tars() {
+    local out="$1"
     cd "$out"
-    for f in *.tar.gz; do
-        [[ -f "$f" ]] && tar -xzf "$f" 2>/dev/null && rm -f "$f"
+    for f in *.tar.gz *.tar.xz; do
+        [[ -f "$f" ]] || continue
+        log "    Extracting: $f"
+        tar -xf "$f" 2>/dev/null && rm -f "$f"
     done
-    ok "Kernel extracted to $out"
 }
 
-# ════════════════════════════════════════════════════════════
-# Packing Methods
-# ════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════
+# Legacy Packing Methods (backward compat)
+# ════════════════════════════════════════════════════════════════
 
 # ── REMake (ophub) ──
 pack_remake() {
     local stage="$1"
-    step "Packing with ophub remake"
-    log "Stage: rootfs at ${stage}/rootfs, kernel at ${stage}/kernel"
-    log "TODO: call remake binary with these paths"
-
-    # Structure expected by remake:
-    # ${stage}/rootfs/ → root filesystem
-    # ${stage}/kernel/ → boot/, dtb/, modules/
-    # remake will generate .img.gz
-
-    warn "remake binary not bundled. Install it manually:"
-    warn "  git clone https://github.com/ophub/amlogic-s9xxx-openwrt"
-    warn "  Use: sudo ./remake -b ${OP_DEVICE} -k ${KERNEL_VERSION} -r ${stage}/rootfs"
-
-    # For now, bundle the rootfs so it's ready for manual remake
+    step "  Legacy pack: ophub remake"
+    warn "  remake binary not bundled. rootfs + kernel staged at:"
+    warn "    rootfs: ${stage}/mnt_rootfs"
+    warn "    kernel: ${stage}/kernel"
     local bundle="${OUT_TVBOX}/hermes-wrt-${OP_DEVICE}-${KERNEL_VERSION}-rootfs.tar.gz"
     cd "$stage/rootfs"
     tar -czf "$bundle" . 2>/dev/null
-    ok "Rootfs bundled for remake: $bundle"
+    ok "  Rootfs ready for remake: $bundle"
 }
 
-# ── ULO-Builder approach ──
+# ── ULO-style ──
 pack_ulo() {
     local stage="$1"
-    step "Packing with ULO-style approach"
-
+    step "  Legacy pack: ULO-style"
     local bundle="${OUT_TVBOX}/hermes-wrt-${OP_DEVICE}-${KERNEL_VERSION}-rootfs.tar.gz"
     cd "$stage/rootfs"
-    tar -czf "$bundle" . 2>/dev/null
-    ok "Rootfs ready for ULO-Builder: $bundle"
+    tar -czf "$bundle" .
+    ok "  Rootfs ready for ULO: $bundle"
 }
 
-# ── Custom packer ──
+# ── Custom ──
 pack_custom() {
     local stage="$1"
-    step "Custom packing requested"
-    warn "Custom packer not implemented. Rootfs + kernel staged at:"
-    warn "  rootfs: ${stage}/rootfs"
-    warn "  kernel: ${stage}/kernel"
+    step "  Custom pack"
+    warn "  Rootfs + kernel staged at: ${stage}"
 }
