@@ -239,7 +239,12 @@ build_package_list() {
         BASE+=" kmod-usb-ohci kmod-usb2 kmod-usb-ehci usb-modeswitch"
         BASE+=" modemmanager modemmanager-rpcd luci-proto-modemmanager libmbim libqmi"
         BASE+=" sms-tool picocom minicom"
-        BASE+=" luci-proto-ncm luci-proto-mbim luci-proto-3g"
+        BASE+=" luci-proto-ncm luci-proto-mbim luci-proto-3g luci-proto-xmm luci-proto-atc"
+        BASE+=" luci-app-3ginfo-lite luci-app-modemband luci-app-modeminfo luci-app-mmconfig"
+        BASE+=" luci-app-sms-tool-js luci-app-droidnet luci-app-lite-watchdog"
+        BASE+=" modeminfo modeminfo-serial-dell modeminfo-serial-fibocom"
+        BASE+=" modeminfo-serial-sierra modeminfo-serial-tw modeminfo-serial-xmm"
+        BASE+=" xmm-modem modemband"
     fi
 
     # — Storage —
