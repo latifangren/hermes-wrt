@@ -36,6 +36,19 @@ OP_VARIANT="${3:-$BUILD_VARIANT}"
 SRC_NAME="${OP_SOURCE%:*}"
 SRC_VER="${OP_SOURCE#*:}"
 
+# ── Colors ──
+PURPLE='\033[95m'; BLUE='\033[94m'; GREEN='\033[92m'
+YELLOW='\033[93m'; RED='\033[91m'; RESET='\033[0m'
+STEPS="${PURPLE}[STEPS]${RESET}"; INFO="${BLUE}[INFO]${RESET}"
+SUCCESS="${GREEN}[SUCCESS]${RESET}"; WARN="${YELLOW}[WARN]${RESET}"
+ERROR="${RED}[ERROR]${RESET}"
+
+log()   { echo -e "${INFO} $1"; }
+step()  { echo -e "\n${STEPS} $1"; }
+ok()    { echo -e "${SUCCESS} $1"; }
+warn()  { echo -e "${WARN} $1"; }
+fail()  { echo -e "${ERROR} $1" >&2; exit 1; }
+
 # ── Resolve 'latest' ke versi stabil terbaru ──
 resolve_latest_source() {
     local base_url="https://downloads.${SRC_NAME}.org/releases/"
@@ -55,19 +68,6 @@ fi
 SRC_BRANCH="${SRC_VER%.*}"
 SRC_MAJOR="${SRC_BRANCH%%.*}"
 SRC_MINOR="${SRC_BRANCH#*.}"
-
-# ── Colors ──
-PURPLE='\033[95m'; BLUE='\033[94m'; GREEN='\033[92m'
-YELLOW='\033[93m'; RED='\033[91m'; RESET='\033[0m'
-STEPS="${PURPLE}[STEPS]${RESET}"; INFO="${BLUE}[INFO]${RESET}"
-SUCCESS="${GREEN}[SUCCESS]${RESET}"; WARN="${YELLOW}[WARN]${RESET}"
-ERROR="${RED}[ERROR]${RESET}"
-
-log()   { echo -e "${INFO} $1"; }
-step()  { echo -e "\n${STEPS} $1"; }
-ok()    { echo -e "${SUCCESS} $1"; }
-warn()  { echo -e "${WARN} $1"; }
-fail()  { echo -e "${ERROR} $1" >&2; exit 1; }
 
 # ── Download with aria2 + retry ──
 ariadl() {
