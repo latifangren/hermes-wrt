@@ -77,10 +77,27 @@ pack_tvbox() {
     log "  Extracting rootfs.tar.gz..."
     sudo tar -xzf "$rootfs_tgz" -C "$stage/mnt_rootfs/" --numeric-owner
 
-    # 5d. Kernel modules
+    # 5d. Kernel modules — handle both layout: modules/ (ophub) or lib/modules/ (sib0ndt, rootfs-*.tar.gz)
+    local mod_src=""
     if [[ -d "$stage/kernel/modules" ]]; then
-        log "  Installing kernel modules"
-        sudo cp -rf "$stage/kernel/modules"/* "$stage/mnt_rootfs/" 2>/dev/null || true
+        mod_src="$stage/kernel/modules"
+    elif [[ -d "$stage/kernel/lib/modules" ]]; then
+        mod_src="$stage/kernel/lib"
+    fi
+
+    if [[ -n "$mod_src" ]]; then
+        log "  Installing kernel modules (from $(basename $mod_src))"
+        # Bersihin stock modules dulu biar gak conflict
+        sudo rm -rf "$stage/mnt_rootfs/lib/modules/"
+        sudo cp -rf "${mod_src}"/* "$stage/mnt_rootfs/" 2>/dev/null || true
+    fi
+
+    # Flatten kernel modules (.ko) — tarik ke root KVERSION, hapus subfolder
+    local kver=$(ls -1 "$stage/mnt_rootfs/lib/modules/" 2>/dev/null | head -1)
+    if [[ -n "$kver" && -d "$stage/mnt_rootfs/lib/modules/$kver" ]]; then
+        log "  Flattening kernel modules ($kver)..."
+        sudo find "$stage/mnt_rootfs/lib/modules/$kver" -mindepth 2 -type f -name "*.ko" -exec mv -f {} "$stage/mnt_rootfs/lib/modules/$kver/" \;
+        sudo rm -rf "$stage/mnt_rootfs/lib/modules/$kver"/*/
     fi
 
     # 5e. files/ overlay
