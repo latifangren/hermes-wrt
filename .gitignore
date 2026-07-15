@@ -1,0 +1,4 @@
+*.log
+imagebuilder/
+tmp/
+out/
