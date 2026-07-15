@@ -53,7 +53,7 @@ fail()  { echo -e "${ERROR} $1" >&2; exit 1; }
 resolve_latest_source() {
     local base_url="https://downloads.${SRC_NAME}.org/releases/"
     log "Resolving 'latest' from ${base_url}..."
-    local latest=$(curl -sL "$base_url" | grep -oP 'href="\K[0-9]+\.[0-9]+\.[0-9]+/' | tr -d '/' | sort -V | tail -1)
+    local latest=$(curl -sL "$base_url" | grep -oP 'href="\K[0-9]+\.[0-9]+\.[0-9]+/' | tr -d '/' | grep -v '^25\.' | sort -V | tail -1)
     if [[ -n "$latest" ]]; then
         SRC_VER="$latest"
         log "  → ${SRC_NAME}:${SRC_VER}"
@@ -342,7 +342,20 @@ inject_mihombreng() {
     local ver="${tag_name#v}"
     local pkg_name="mihombreng-${ver}-${mih_arch}.${ext}"
     local lui_name="luci-app-mihombreng-${ver}_all.${ext}"
-    [[ "$ext" == "apk" ]] && lui_name="luci-app-mihombreng-${ver}-all.${ext}"
+    [[ "$ext" == "apk" ]] && {
+        # workaround: di release v1.2.4 mihombreng apk aarch64 terdeteksi sebagai *.apk-all.apk atau nama lain
+        # cari lewat api github release assets yang persis berisi 'mihombreng-' * '-[arch].apk_or_tar_or_whatever'
+        local api_assets
+        api_assets=$(curl -sSL "$tag_url" 2>/dev/null)
+        local raw_pkg_name
+        raw_pkg_name=$(echo "$api_assets" | python3 -c "import json,sys; assets=json.load(sys.stdin).get('assets',[]); print(next((a['name'] for a in assets if a['name'].startswith('mihombreng-') and a['name'].endswith('.apk') and '$mih_arch' in a['name']), ''))" 2>/dev/null)
+        if [[ -n "$raw_pkg_name" ]]; then
+            pkg_name="$raw_pkg_name"
+        else
+            pkg_name="mihombreng-${ver}-${mih_arch}.apk"
+        fi
+        lui_name="luci-app-mihombreng-${ver}-all.apk"
+    }
 
     local base_url="https://github.com/latifangren/mihombreng/releases/download/${tag_name}"
     local pkg_dir="${IB_PATH}/packages"

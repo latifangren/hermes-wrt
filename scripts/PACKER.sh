@@ -108,7 +108,8 @@ pack_tvbox() {
     fi
 
     # 5f. mihombreng inject
-    inject_mihombreng_raw "$stage/mnt_rootfs" 2>/dev/null || true
+    # (packages are pre-installed in rootfs during make image, so no raw injection needed)
+    :
 
     # ── Step 6: Unmount + compress ──
     step "[6/6] Unmounting + compressing..."
