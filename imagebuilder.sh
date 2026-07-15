@@ -194,6 +194,12 @@ configure_ib() {
     if [[ "$SRC_NAME" == "openwrt" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
         # Add kiddin9 custom packages feed
         echo "src/gz kiddin9 https://dl.openwrt.ai/releases/${SRC_BRANCH}/packages/${ARCH_3}/kiddin9" >> repositories.conf
+        # Add common architectures to prevent incompat warning for custom packages like mihombreng
+        echo "arch all 1" >> repositories.conf
+        echo "arch aarch64_generic 10" >> repositories.conf
+        echo "arch aarch64_cortex-a72 15" >> repositories.conf
+        echo "arch aarch64_cortex-a53 16" >> repositories.conf
+        echo "arch aarch64 20" >> repositories.conf
     fi
 
     # Force overwrite on package install (OPKG)
@@ -262,7 +268,7 @@ build_package_list() {
         BASE+=" kmod-usb-ohci kmod-usb2 kmod-usb-ehci usb-modeswitch"
         BASE+=" modemmanager modemmanager-rpcd luci-proto-modemmanager libmbim libqmi"
         BASE+=" sms-tool picocom minicom"
-        BASE+=" luci-proto-ncm luci-proto-mbim luci-proto-3g luci-proto-xmm luci-proto-atc"
+        BASE+=" luci-proto-ncm luci-proto-mbim luci-proto-3g luci-proto-xmm"
         BASE+=" luci-app-3ginfo-lite luci-app-modemband luci-app-modeminfo luci-app-mmconfig"
         BASE+=" luci-app-sms-tool-js luci-app-droidnet luci-app-lite-watchdog"
         BASE+=" modeminfo modeminfo-serial-dell modeminfo-serial-fibocom"
