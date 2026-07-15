@@ -214,8 +214,7 @@ build_package_list() {
     BASE+=" -dnsmasq dnsmasq-full"
     BASE+=" luci luci-ssl luci-compat luci-base luci-mod-admin-full luci-mod-network"
     BASE+=" luci-mod-status luci-mod-system luci-proto-ipv6 luci-proto-ppp"
-    BASE+=" luci-app-firewall luci-app-opkg luci-app-ttyd luci-app-poweroff"
-    BASE+=" luci-app-ramfree luci-app-package-manager"
+    BASE+=" luci-app-firewall luci-app-opkg luci-app-ttyd luci-app-ramfree luci-app-package-manager"
     BASE+=" libiwinfo libiwinfo-data cgi-io"
     BASE+=" ttyd htop bash curl wget-ssl tar unzip unrar gzip jq nano"
     BASE+=" openssh-sftp-server ca-bundle ca-certificates"
@@ -226,7 +225,7 @@ build_package_list() {
     BASE+=" rpcd rpcd-mod-file rpcd-mod-iwinfo rpcd-mod-luci rpcd-mod-rrdns"
     BASE+=" uhttpd uhttpd-mod-ubus px5g-mbedtls"
     [[ "${ENABLE_EXTRAS:-true}" == "true" ]] && \
-        BASE+=" btop httping"
+        BASE+=" btop screen pv httping adb"
     BASE+=" luci-app-filebrowser"
 
     # — Modem support —
