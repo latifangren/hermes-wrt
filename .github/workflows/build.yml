@@ -3,10 +3,19 @@ name: Build Hermes-WRT
 on:
   workflow_dispatch:
     inputs:
-      source:
-        description: 'Source — openwrt/immortalwrt:version. Pake ":latest" untuk auto-detect versi terbaru'
+      source_name:
+        description: 'Tipe Source (OpenWrt / ImmortalWrt)'
         required: true
-        default: 'openwrt:latest'
+        default: 'openwrt'
+        type: choice
+        options:
+          - openwrt
+          - immortalwrt
+      source_version:
+        description: 'Versi (misal: latest, 24.10.0, 23.05.5)'
+        required: true
+        default: 'latest'
+        type: string
       device:
         description: 'Device'
         required: true
@@ -114,7 +123,7 @@ jobs:
         id: build
         run: |
           chmod +x imagebuilder.sh
-          if sudo ./imagebuilder.sh "${{ inputs.source }}" "${{ inputs.device }}" "${{ inputs.variant }}"; then
+          if sudo ./imagebuilder.sh "${{ inputs.source_name }}:${{ inputs.source_version }}" "${{ inputs.device }}" "${{ inputs.variant }}"; then
             echo "status=success" >> $GITHUB_OUTPUT
           else
             echo "status=failed" >> $GITHUB_OUTPUT
