@@ -262,13 +262,21 @@ inject_packages() {
     # Pendeteksian & download dinamis dari repositori paket eksternal
     local repo_url="https://github.com/latifangren/openwrt-custom-packages.git"
     local tmp_dir="/tmp/hermes-custom-pkg"
+    local pkg_sub="ipk"
+    [[ "$SRC_MAJOR" -ge 25 ]] && pkg_sub="apk"
     
-    log "Mengunduh paket biner eksternal dari ${repo_url}..."
+    log "Mengunduh paket biner eksternal (${pkg_sub}) dari ${repo_url}..."
     rm -rf "$tmp_dir"
     if git clone --depth 1 "$repo_url" "$tmp_dir" &>/dev/null; then
         mkdir -p "$PACKAGES_DIR"
-        find "$tmp_dir" -type f \( -name "*.ipk" -o -name "*.apk" \) -exec cp -f {} "$PACKAGES_DIR/" \; 2>/dev/null || true
-        ok "Paket eksternal berhasil ditarik secara dinamis!"
+        # Bersihkan dulu folder lokal agar tidak campur aduk format ipk dan apk
+        rm -f "$PACKAGES_DIR"/*.ipk "$PACKAGES_DIR"/*.apk 2>/dev/null || true
+        if [[ -d "$tmp_dir/$pkg_sub" ]]; then
+            find "$tmp_dir/$pkg_sub" -type f \( -name "*.ipk" -o -name "*.apk" \) -exec cp -f {} "$PACKAGES_DIR/" \; 2>/dev/null || true
+            ok "Paket eksternal (${pkg_sub}) berhasil ditarik secara dinamis!"
+        else
+            warn "Subdirektori ${pkg_sub} tidak ditemukan di repository paket eksternal."
+        fi
     else
         warn "Gagal mengklon repositori paket eksternal. Menggunakan paket lokal yang tersedia."
     fi
