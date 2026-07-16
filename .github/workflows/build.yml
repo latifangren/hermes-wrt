@@ -1,5 +1,9 @@
 name: Build Hermes-WRT
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
     inputs:
@@ -107,6 +111,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache ImageBuilder packages
+        uses: actions/cache@v4
+        with:
+          path: imagebuilder/dl
+          key: ${{ runner.os }}-ib-dl-${{ inputs.source_name }}-${{ inputs.source_version }}-${{ inputs.device }}
+          restore-keys: |
+            ${{ runner.os }}-ib-dl-${{ inputs.source_name }}-${{ inputs.source_version }}-
+            ${{ runner.os }}-ib-dl-
+
+      - name: Syntax Lint
+        run: |
+          bash -n imagebuilder.sh
+          bash -n scripts/PACKER.sh
+          bash -n scripts/INCLUDE.sh
+
       - name: Inject Config
         run: |
           cat >> hermes.conf << EOF
@@ -137,3 +156,11 @@ jobs:
           name: hermes-wrt-${{ inputs.device }}-${{ inputs.variant }}
           path: out/*
           retention-days: 7
+
+      - name: Upload Build Logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-logs-${{ inputs.device }}-${{ inputs.variant }}
+          path: build_*.log
+          retention-days: 3
