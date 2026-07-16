@@ -30,6 +30,9 @@ pack_tvbox() {
     rm -rf "$stage"
     mkdir -p "$stage/rootfs" "$stage/kernel" "$stage/boot"
 
+    # Convert kernel version to lowercase for casing check integrity
+    [[ -n "${KERNEL_VERSION:-}" ]] && KERNEL_VERSION="${KERNEL_VERSION,,}"
+
     cleanup() {
         if [[ -n "${LOOP_DEV:-}" ]]; then
             log "Cleaning up mounts and loop devices..."
@@ -157,7 +160,7 @@ download_kernel() {
 download_kernel_ophub() {
     local out="$1" ver="${2:-auto}"
     step "  Kernel from ophub (${ver})"
-    if [[ "$ver" == "auto" ]]; then
+    if [[ "${ver,,}" == "auto" ]]; then
         # Fetch release tags, fallback to 6.12.95 if rate-limited or fails
         local tags
         tags=$(curl -sL "https://api.github.com/repos/ophub/kernel/releases/tags/kernel_stable" 2>/dev/null \
@@ -206,7 +209,7 @@ download_kernel_ophub() {
 download_kernel_armarchindo() {
     local out="$1" ver="${2:-auto}"
     step "  Kernel from armarchindo (${ver})"
-    if [[ "$ver" == "auto" ]]; then
+    if [[ "${ver,,}" == "auto" ]]; then
         local latest=$(curl -sL "https://api.github.com/repos/armarchindo/kernel/releases/latest" \
             | grep -oE '"tag_name": "[^"]+"' | cut -d'"' -f4)
         ver="${latest:-6.12.0}"
@@ -227,7 +230,7 @@ download_kernel_armarchindo() {
 download_kernel_sib0ndt() {
     local out="$1" ver="${2:-auto}"
     step "  Kernel from sib0ndt (${ver})"
-    if [[ "$ver" == "auto" ]]; then
+    if [[ "${ver,,}" == "auto" ]]; then
         local tags=$(curl -sL "https://api.github.com/repos/sib0ndt/linux/releases" \
             | grep -oE '"tag_name": "[^"]+"' | cut -d'"' -f4 | grep "kernel-amlogic")
         ver=$(echo "$tags" | head -1)
@@ -252,7 +255,7 @@ download_kernel_sib0ndt() {
 download_kernel_stable() {
     local out="$1" ver="${2:-auto}"
     step "  Kernel from kernel.org (${ver})"
-    if [[ "$ver" == "auto" ]]; then
+    if [[ "${ver,,}" == "auto" ]]; then
         ver=$(curl -sL "https://www.kernel.org/releases.json" \
             | grep -oE '"version": "([0-9]+\.[0-9]+\.?[0-9]*)"' | head -1 | cut -d'"' -f4)
         [[ -z "$ver" ]] && ver="6.12"
