@@ -15,6 +15,9 @@
 # ============================================================
 
 # ── Build raw disk image (hibrid method) ──
+# Global state for cleanup trap
+LOOP_DEV=""
+
 pack_tvbox() {
     step "Packing TV box image"
     local disk_img="${OUT_TVBOX}/hermes-wrt-${OP_DEVICE}.img"
@@ -27,14 +30,15 @@ pack_tvbox() {
     rm -rf "$stage"
     mkdir -p "$stage/rootfs" "$stage/kernel" "$stage/boot"
 
-    local loop_dev=""
     cleanup() {
-        if [[ -n "$loop_dev" ]]; then
+        if [[ -n "${LOOP_DEV:-}" ]]; then
             log "Cleaning up mounts and loop devices..."
-            sudo umount "${loop_dev}p1" "${loop_dev}p2" 2>/dev/null || true
-            sudo losetup -d "$loop_dev" 2>/dev/null || true
+            sudo umount "${LOOP_DEV}p1" "${LOOP_DEV}p2" 2>/dev/null || true
+            sudo losetup -d "$LOOP_DEV" 2>/dev/null || true
         fi
-        rm -rf "$stage" 2>/dev/null || true
+        if [[ -n "${stage:-}" ]]; then
+            rm -rf "$stage" 2>/dev/null || true
+        fi
     }
     trap cleanup EXIT
 
@@ -56,13 +60,13 @@ pack_tvbox() {
 
     # ── Step 4: Format + mount ──
     step "[4/6] Mounting + formatting..."
-    local loop_dev=$(sudo losetup -P -f --show "$disk_img")
+    LOOP_DEV=$(sudo losetup -P -f --show "$disk_img")
     sleep 1
     mkdir -p "$stage/mnt_boot" "$stage/mnt_rootfs"
-    sudo mkfs.fat -F 32 -n "BOOT" "${loop_dev}p1"   >/dev/null 2>&1
-    sudo mkfs.ext4 -F -L "ROOTFS" "${loop_dev}p2"   >/dev/null 2>&1
-    sudo mount "${loop_dev}p1" "$stage/mnt_boot"
-    sudo mount "${loop_dev}p2" "$stage/mnt_rootfs"
+    sudo mkfs.fat -F 32 -n "BOOT" "${LOOP_DEV}p1"   >/dev/null 2>&1
+    sudo mkfs.ext4 -F -L "ROOTFS" "${LOOP_DEV}p2"   >/dev/null 2>&1
+    sudo mount "${LOOP_DEV}p1" "$stage/mnt_boot"
+    sudo mount "${LOOP_DEV}p2" "$stage/mnt_rootfs"
 
     # ── Step 5: Assemble ──
     step "[5/6] Assembling image contents..."
@@ -115,9 +119,9 @@ pack_tvbox() {
 
     # ── Step 6: Unmount + compress ──
     step "[6/6] Unmounting + compressing..."
-    sudo umount "${loop_dev}p1" "${loop_dev}p2"
-    sudo losetup -d "$loop_dev"
-    loop_dev=""
+    sudo umount "${LOOP_DEV}p1" "${LOOP_DEV}p2"
+    sudo losetup -d "$LOOP_DEV"
+    LOOP_DEV=""
 
     gzip -9 "$disk_img"
 
