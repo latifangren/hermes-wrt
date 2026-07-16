@@ -88,7 +88,7 @@ Gunakan berkas `hermes.conf` untuk mematikan atau menghidupkan fitur bawaan:
   - **Ophub** ([github.com/ophub/amlogic-s9xxx-openwrt](https://github.com/ophub/amlogic-s9xxx-openwrt)) — Penemu dan pembangun integrasi kernel Amlogic TV Box.
   - **Armarchindo / DBAI** ([github.com/armarchindo/kernel](https://github.com/armarchindo/kernel)) — Penyedia kernel DBAI yang dioptimalkan untuk STB Indonesia.
   - **Sib0ndt** ([github.com/sib0ndt/linux](https://github.com/sib0ndt/linux)) — Custom kernel Amlogic TV Box.
-  - **syntax-xidz** ([github.com/syntax-xidz/ULO-Builder](https://github.com/syntax-xidz/ULO-Builder)) — Repack & ULO-Builder utility references.
+  - **de-quenx / syntax-xidz (XIDZs-WRT)** ([github.com/de-quenx/XIDZs-WRT](https://github.com/de-quenx/XIDZs-WRT)) — Repack, ULO-Builder, and utility references.
   - **RizkiKotet-Dev & frizkyiman** — Pembangun repositori referensi CI/CD builder untuk komunitas Indonesia.
   - **Kiddin9** — Penyedia feed package mirror OpenWrt lengkap.
   - Serta seluruh pembuat package lokal (RakitanManager, Nokia Status, MacTodong, dll) yang biner kustomnya terintegrasi dalam proyek ini.
