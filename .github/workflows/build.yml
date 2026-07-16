@@ -162,7 +162,7 @@ jobs:
         id: build
         run: |
           VERSION="${{ inputs.source_version }}"
-          if [[ "$VERSION" =~ "custom" ]]; then
+          if [[ "$VERSION" == "custom (Tulis manual di bawah)" ]]; then
             VERSION="${{ inputs.custom_version }}"
           fi
           if [[ -z "$VERSION" ]]; then
