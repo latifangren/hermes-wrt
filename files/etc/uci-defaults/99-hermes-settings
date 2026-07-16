@@ -14,6 +14,35 @@ uci add_list dhcp.@dnsmasq[0].server='8.8.8.8'
 uci add_list dhcp.@dnsmasq[0].server='8.8.4.4'
 uci commit dhcp
 
+# Configure USB Tethering (usb0) and bind to WAN Firewall Zone
+if ! uci -q get network.tethering >/dev/null; then
+    uci set network.tethering=interface
+    uci set network.tethering.proto='dhcp'
+    uci set network.tethering.device='usb0'
+    uci commit network
+    
+    # Cari dan tambahkan tethering ke zone WAN secara dinamis
+    local cfg_idx=0
+    while true; do
+        local z_name=$(uci -q get firewall.@zone[$cfg_idx].name)
+        [ -z "$z_name" ] && break
+        if [ "$z_name" = "wan" ]; then
+            local z_nets=$(uci -q get firewall.@zone[$cfg_idx].network)
+            if ! echo "$z_nets" | grep -q "tethering"; then
+                uci add_list firewall.@zone[$cfg_idx].network='tethering'
+                uci commit firewall
+            fi
+            break
+        fi
+        cfg_idx=$((cfg_idx + 1))
+    done
+fi
+
+# Patch usb-modeswitch untuk mencegah kegagalan inisialisasi modem LTE/5G
+if [ -f /etc/usb-mode.json ]; then
+    sed -i -e '/12d1:15c1/,+5d' -e '/413c:81d7/,+5d' /etc/usb-mode.json
+fi
+
 # Set default theme to luxe if available, fallback to bootstrap
 if [ -d /www/luci-static/luxe ]; then
     uci set luci.main.mediaurlbase='/luci-static/luxe'
