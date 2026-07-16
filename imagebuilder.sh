@@ -255,7 +255,10 @@ build_package_list() {
     BASE+=" -dnsmasq dnsmasq-full"
     BASE+=" luci luci-ssl luci-compat luci-base luci-mod-admin-full luci-mod-network"
     BASE+=" luci-mod-status luci-mod-system luci-proto-ipv6 luci-proto-ppp"
-    BASE+=" luci-app-firewall luci-app-opkg luci-app-ttyd luci-app-ramfree luci-app-package-manager"
+    BASE+=" luci-app-firewall luci-app-opkg luci-app-ttyd luci-app-package-manager"
+    if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
+        BASE+=" luci-app-ramfree"
+    fi
     BASE+=" libiwinfo libiwinfo-data cgi-io"
     BASE+=" ttyd htop bash curl wget-ssl tar unzip unrar gzip jq nano"
     BASE+=" openssh-sftp-server ca-bundle ca-certificates"
@@ -283,8 +286,9 @@ build_package_list() {
         BASE+=" kmod-usb-ohci kmod-usb2 kmod-usb-ehci usb-modeswitch"
         BASE+=" modemmanager modemmanager-rpcd luci-proto-modemmanager libmbim libqmi"
         BASE+=" sms-tool picocom minicom"
-        BASE+=" luci-proto-ncm luci-proto-mbim luci-proto-3g luci-proto-xmm"
+        BASE+=" luci-proto-ncm luci-proto-mbim luci-proto-3g"
         if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
+            BASE+=" luci-proto-xmm"
             BASE+=" luci-app-3ginfo-lite luci-app-modemband luci-app-modeminfo luci-app-mmconfig"
             BASE+=" luci-app-sms-tool-js luci-app-droidnet luci-app-lite-watchdog"
             BASE+=" modeminfo modeminfo-serial-dell modeminfo-serial-fibocom"
@@ -294,11 +298,17 @@ build_package_list() {
     fi
 
     # — Storage —
-    BASE+=" luci-app-diskman smartmontools"
+    if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
+        BASE+=" luci-app-diskman"
+    fi
+    BASE+=" smartmontools"
     BASE+=" kmod-usb-storage kmod-usb-storage-uas ntfs-3g exfat-mkfs exfat-fsck dosfstools"
 
     # — Network extras —
-    BASE+=" luci-app-zerotier tailscale luci-app-cloudflared"
+    if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
+        BASE+=" luci-app-zerotier"
+    fi
+    BASE+=" tailscale luci-app-cloudflared"
     BASE+=" nlbwmon luci-app-nlbwmon vnstat2 vnstati2 luci-app-vnstat2 netdata"
 
     # — Theme defaults (official only) —
@@ -308,8 +318,9 @@ build_package_list() {
     if [[ "${ENABLE_TUNNELS:-true}" == "true" ]]; then
         TUNNEL+=" coreutils-nohup bash dnsmasq-full curl ca-certificates ipset ip-full"
         TUNNEL+=" libcap libcap-bin ruby ruby-yaml kmod-tun kmod-inet-diag unzip kmod-nft-tproxy"
-        TUNNEL+=" dns2tcp microsocks tcping"
+        TUNNEL+=" microsocks"
         if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
+            TUNNEL+=" dns2tcp tcping"
             TUNNEL+=" luci-app-openclash"
             TUNNEL+=" nikki luci-app-nikki mihombreng luci-app-mihombreng"
             TUNNEL+=" chinadns-ng resolveip dns2socks ipt2socks"
