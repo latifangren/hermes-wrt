@@ -14,4 +14,10 @@ uci add_list dhcp.@dnsmasq[0].server='8.8.8.8'
 uci add_list dhcp.@dnsmasq[0].server='8.8.4.4'
 uci commit dhcp
 
+# Set default theme to luxe if available, fallback to bootstrap
+if [ -d /www/luci-static/luxe ]; then
+    uci set luci.main.mediaurlbase='/luci-static/luxe'
+    uci commit luci
+fi
+
 exit 0

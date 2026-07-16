@@ -287,13 +287,17 @@ build_package_list() {
         BASE+=" modemmanager modemmanager-rpcd luci-proto-modemmanager libmbim libqmi"
         BASE+=" sms-tool picocom minicom"
         BASE+=" luci-proto-ncm luci-proto-mbim luci-proto-3g"
+        # Custom local packages from packages/ folder
+        BASE+=" luci-app-rakitanmanager luci-app-nokia-status luci-app-mactodong"
+        BASE+=" xmm-modem luci-proto-xmm luci-proto-atc atc-fib-fm350_gl atc-fib-l8x0_gl"
+        BASE+=" luci-app-3ginfo-lite luci-app-mmconfig"
+
         if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
-            BASE+=" luci-proto-xmm"
-            BASE+=" luci-app-3ginfo-lite luci-app-modemband luci-app-modeminfo luci-app-mmconfig"
+            BASE+=" luci-app-modemband luci-app-modeminfo"
             BASE+=" luci-app-sms-tool-js luci-app-droidnet luci-app-lite-watchdog"
             BASE+=" modeminfo modeminfo-serial-dell modeminfo-serial-fibocom"
             BASE+=" modeminfo-serial-sierra modeminfo-serial-tw modeminfo-serial-xmm"
-            BASE+=" xmm-modem modemband"
+            BASE+=" modemband"
         fi
     fi
 
@@ -312,7 +316,7 @@ build_package_list() {
     BASE+=" nlbwmon luci-app-nlbwmon vnstat2 vnstati2 luci-app-vnstat2 netdata"
 
     # — Theme defaults (official only) —
-    BASE+=" luci-theme-bootstrap luci-theme-material"
+    BASE+=" luci-theme-bootstrap luci-theme-material luci-theme-luxe"
 
     # — Tunnels —
     if [[ "${ENABLE_TUNNELS:-true}" == "true" ]]; then
@@ -415,6 +419,30 @@ inject_mihombreng() {
     ok "mihombreng packages ready in ${pkg_dir}"
 }
 
+# ── Inject Luxe theme package ──
+inject_luxe_theme() {
+    local ext="ipk"
+    local luxe_ver="2.6.0"
+    local luxe_file=""
+
+    if [[ "$SRC_MAJOR" -ge 25 ]]; then
+        ext="apk"
+        luxe_file="luci-theme-luxe-2.6.0-r07072026.apk"
+    elif [[ "$SRC_MAJOR" -eq 24 ]]; then
+        luxe_file="luci-theme-luxe_2.6.0-r07072026_24.10_all.ipk"
+    else
+        luxe_file="luci-theme-luxe_2.6.0-07072026_23.05_all.ipk"
+    fi
+
+    local url="https://github.com/de-quenx/luci-theme-luxe/releases/download/v${luxe_ver}/${luxe_file}"
+    local pkg_dir="${IB_PATH}/packages"
+    mkdir -p "$pkg_dir"
+
+    step "Downloading Luxe theme ${luxe_ver}..."
+    ariadl "$url" "${pkg_dir}/${luxe_file}" || return 1
+    ok "Luxe theme package ready at ${pkg_dir}"
+}
+
 # ── Run make image ──
 run_make() {
     cd "$IB_PATH"
@@ -428,6 +456,7 @@ run_make() {
     inject_files
     inject_packages
     inject_mihombreng || true
+    inject_luxe_theme || true
 
     step "Running make image..."
     mkdir -p "out_firmware" "out_rootfs"
