@@ -14,6 +14,7 @@ ERROR="${RED}[ERROR]${RESET}"
 log()  { echo -e "${INFO} $1"; }
 step() { echo -e "\n${STEPS} $1"; }
 ok()   { echo -e "${SUCCESS} $1"; }
+warn() { echo -e "${WARN} $1"; }
 fail() { echo -e "${ERROR} $1" >&2; exit 1; }
 
 # ── Download with aria2 + retry ──

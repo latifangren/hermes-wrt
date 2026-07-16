@@ -36,24 +36,29 @@ OP_VARIANT="${3:-$BUILD_VARIANT}"
 SRC_NAME="${OP_SOURCE%:*}"
 SRC_VER="${OP_SOURCE#*:}"
 
-# ── Colors ──
-PURPLE='\033[95m'; BLUE='\033[94m'; GREEN='\033[92m'
-YELLOW='\033[93m'; RED='\033[91m'; RESET='\033[0m'
-STEPS="${PURPLE}[STEPS]${RESET}"; INFO="${BLUE}[INFO]${RESET}"
-SUCCESS="${GREEN}[SUCCESS]${RESET}"; WARN="${YELLOW}[WARN]${RESET}"
-ERROR="${RED}[ERROR]${RESET}"
+# ── Source INCLUDE utils ──
+INCLUDE_PATH="${MAKE_PATH}/scripts/INCLUDE.sh"
+if [[ -f "$INCLUDE_PATH" ]]; then
+    source "$INCLUDE_PATH"
+else
+    PURPLE='\033[95m'; BLUE='\033[94m'; GREEN='\033[92m'
+    YELLOW='\033[93m'; RED='\033[91m'; RESET='\033[0m'
+    STEPS="${PURPLE}[STEPS]${RESET}"; INFO="${BLUE}[INFO]${RESET}"
+    SUCCESS="${GREEN}[SUCCESS]${RESET}"; WARN="${YELLOW}[WARN]${RESET}"
+    ERROR="${RED}[ERROR]${RESET}"
 
-log()   { echo -e "${INFO} $1"; }
-step()  { echo -e "\n${STEPS} $1"; }
-ok()    { echo -e "${SUCCESS} $1"; }
-warn()  { echo -e "${WARN} $1"; }
-fail()  { echo -e "${ERROR} $1" >&2; exit 1; }
+    log()   { echo -e "${INFO} $1"; }
+    step()  { echo -e "\n${STEPS} $1"; }
+    ok()    { echo -e "${SUCCESS} $1"; }
+    warn()  { echo -e "${WARN} $1"; }
+    fail()  { echo -e "${ERROR} $1" >&2; exit 1; }
+fi
 
 # ── Resolve 'latest' ke versi stabil terbaru ──
 resolve_latest_source() {
     local base_url="https://downloads.${SRC_NAME}.org/releases/"
     log "Resolving 'latest' from ${base_url}..."
-    local latest=$(curl -sL "$base_url" | grep -oP 'href="\K[0-9]+\.[0-9]+\.[0-9]+/' | tr -d '/' | grep -v '^25\.' | sort -V | tail -1)
+    local latest=$(curl -sL "$base_url" | grep -oP 'href="\K[0-9]+\.[0-9]+\.[0-9]+/' | tr -d '/' | sort -V | tail -1)
     if [[ -n "$latest" ]]; then
         SRC_VER="$latest"
         log "  → ${SRC_NAME}:${SRC_VER}"
@@ -70,6 +75,8 @@ SRC_MAJOR="${SRC_BRANCH%%.*}"
 SRC_MINOR="${SRC_BRANCH#*.}"
 
 # ── Download with aria2 + retry ──
+# (Definitions are in INCLUDE.sh or fallback, but if we don't fall back we won't need to define it twice here)
+if ! declare -f ariadl >/dev/null; then
 ariadl() {
     [[ $# -lt 1 ]] && fail "Usage: ariadl <url> [output]"
     local url="$1" output="${2:-$(basename "$url")}"
@@ -82,6 +89,7 @@ ariadl() {
     done
     fail "Failed to download: $url"
 }
+fi
 
 # ── Detect device target & architecture ──
 detect_target() {
@@ -149,20 +157,22 @@ download_ib() {
     if [[ "$SRC_MAJOR" -gt 24 ]] || [[ "$SRC_MAJOR" -eq 24 && "$SRC_MINOR" -ge 10 ]]; then
         ext="tar.zst"
     fi
-    local url="https://downloads.${SRC_NAME}.org/releases/${SRC_VER}/targets/${TARGET_SYS}/${SRC_NAME}-imagebuilder-${SRC_VER}-${TARGET_NAME}.Linux-x86_64.${ext}"
+    local base_name="${SRC_NAME}-imagebuilder-${SRC_VER}-${TARGET_NAME}.Linux-x86_64"
+    local archive="${base_name}.${ext}"
+    local url="https://downloads.${SRC_NAME}.org/releases/${SRC_VER}/targets/${TARGET_SYS}/${archive}"
 
     mkdir -p "$MAKE_PATH"
     cd "$MAKE_PATH"
-    ariadl "$url"
+    ariadl "$url" "$archive"
 
     step "Extracting ImageBuilder..."
     case "$ext" in
-        tar.xz)  tar -xJf *-imagebuilder-* >/dev/null 2>&1 ;;
-        tar.zst) tar -xvf *-imagebuilder-* >/dev/null 2>&1 ;;
+        tar.xz)  tar -xJf "$archive" >/dev/null 2>&1 ;;
+        tar.zst) tar -xvf "$archive" >/dev/null 2>&1 ;;
     esac
-    rm -f *-imagebuilder-*.${ext}
+    rm -f "$archive"
     rm -rf "$OPENWRT_DIR"
-    mv -f *-imagebuilder-* "$OPENWRT_DIR" || fail "Failed to extract ImageBuilder"
+    mv -f "$base_name" "$OPENWRT_DIR" || fail "Failed to extract ImageBuilder"
     ok "ImageBuilder ready at $OPENWRT_DIR"
 }
 
@@ -203,12 +213,11 @@ configure_ib() {
     fi
 
     # Force overwrite on package install (OPKG)
-    sed -i 's/install $(BUILD_PACKAGES)/install $(BUILD_PACKAGES) --force-overwrite --force-downgrade/' Makefile 2>/dev/null || true
-
-    # 25.x uses APK — different force flag
     if [[ "$SRC_MAJOR" -ge 25 ]]; then
         sed -i 's/install $(BUILD_PACKAGES)/install $(BUILD_PACKAGES) --allow-downgrades/' Makefile 2>/dev/null || true
         log "OpenWrt 25.x detected: using APK-compatible flags"
+    else
+        sed -i 's/install $(BUILD_PACKAGES)/install $(BUILD_PACKAGES) --force-overwrite --force-downgrade/' Makefile 2>/dev/null || true
     fi
 
     ok "ImageBuilder configured (rootfs: ${rootsize}M)"
@@ -361,7 +370,7 @@ inject_mihombreng() {
         local api_assets
         api_assets=$(curl -sSL "$tag_url" 2>/dev/null)
         local raw_pkg_name
-        raw_pkg_name=$(echo "$api_assets" | python3 -c "import json,sys; assets=json.load(sys.stdin).get('assets',[]); print(next((a['name'] for a in assets if a['name'].startswith('mihombreng-') and a['name'].endswith('.apk') and '$mih_arch' in a['name']), ''))" 2>/dev/null)
+        raw_pkg_name=$(echo "$api_assets" | MIH_ARCH="$mih_arch" python3 -c "import json,sys,os; arch=os.environ.get('MIH_ARCH',''); assets=json.load(sys.stdin).get('assets',[]); print(next((a['name'] for a in assets if a['name'].startswith('mihombreng-') and a['name'].endswith('.apk') and arch in a['name']), ''))" 2>/dev/null)
         if [[ -n "$raw_pkg_name" ]]; then
             pkg_name="$raw_pkg_name"
         else

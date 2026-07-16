@@ -27,6 +27,17 @@ pack_tvbox() {
     rm -rf "$stage"
     mkdir -p "$stage/rootfs" "$stage/kernel" "$stage/boot"
 
+    local loop_dev=""
+    cleanup() {
+        if [[ -n "$loop_dev" ]]; then
+            log "Cleaning up mounts and loop devices..."
+            sudo umount "${loop_dev}p1" "${loop_dev}p2" 2>/dev/null || true
+            sudo losetup -d "$loop_dev" 2>/dev/null || true
+        fi
+        rm -rf "$stage" 2>/dev/null || true
+    }
+    trap cleanup EXIT
+
     # ── Step 1: Download kernel ──
     step "[1/6] Downloading kernel (${KERNEL_SOURCE})..."
     download_kernel "$stage/kernel"
@@ -79,26 +90,16 @@ pack_tvbox() {
     sudo tar -xzf "$rootfs_tgz" -C "$stage/mnt_rootfs/" --numeric-owner
 
     # 5d. Kernel modules — handle both layout: modules/ (ophub) or lib/modules/ (sib0ndt, rootfs-*.tar.gz)
-    local mod_src=""
-    if [[ -d "$stage/kernel/modules" ]]; then
-        mod_src="$stage/kernel/modules"
-    elif [[ -d "$stage/kernel/lib/modules" ]]; then
-        mod_src="$stage/kernel/lib"
-    fi
-
-    if [[ -n "$mod_src" ]]; then
-        log "  Installing kernel modules (from $(basename $mod_src))"
-        # Bersihin stock modules dulu biar gak conflict
+    if [[ -d "$stage/kernel/lib/modules" ]]; then
+        log "  Installing kernel modules from lib/modules"
         sudo rm -rf "$stage/mnt_rootfs/lib/modules/"
-        sudo cp -rf "${mod_src}"/* "$stage/mnt_rootfs/" 2>/dev/null || true
-    fi
-
-    # Flatten kernel modules (.ko) — tarik ke root KVERSION, hapus subfolder
-    local kver=$(ls -1 "$stage/mnt_rootfs/lib/modules/" 2>/dev/null | head -1)
-    if [[ -n "$kver" && -d "$stage/mnt_rootfs/lib/modules/$kver" ]]; then
-        log "  Flattening kernel modules ($kver)..."
-        sudo find "$stage/mnt_rootfs/lib/modules/$kver" -mindepth 2 -type f -name "*.ko" -exec mv -f {} "$stage/mnt_rootfs/lib/modules/$kver/" \;
-        sudo rm -rf "$stage/mnt_rootfs/lib/modules/$kver"/*/
+        sudo mkdir -p "$stage/mnt_rootfs/lib/modules/"
+        sudo cp -rf "$stage/kernel/lib/modules"/* "$stage/mnt_rootfs/lib/modules/" 2>/dev/null || true
+    elif [[ -d "$stage/kernel/modules" ]]; then
+        log "  Installing kernel modules from modules"
+        sudo rm -rf "$stage/mnt_rootfs/lib/modules/"
+        sudo mkdir -p "$stage/mnt_rootfs/lib/modules/"
+        sudo cp -rf "$stage/kernel/modules"/* "$stage/mnt_rootfs/lib/modules/" 2>/dev/null || true
     fi
 
     # 5e. files/ overlay
@@ -116,9 +117,9 @@ pack_tvbox() {
     step "[6/6] Unmounting + compressing..."
     sudo umount "${loop_dev}p1" "${loop_dev}p2"
     sudo losetup -d "$loop_dev"
+    loop_dev=""
 
     gzip -9 "$disk_img"
-    rm -rf "$stage"
 
     local out_file="${disk_img}.gz"
     [[ -f "$out_file" ]] || { warn "Failed to create .img.gz"; return 1; }
