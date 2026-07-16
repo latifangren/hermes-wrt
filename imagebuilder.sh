@@ -509,6 +509,12 @@ build_tvbox() {
 # MAIN
 # ═══════════════════════════════════════════════════════
 main() {
+    # If device is official, ignore selected kernel inputs
+    if [[ "$TVBOX" == "false" ]]; then
+        KERNEL_SOURCE="official"
+        KERNEL_VERSION="official"
+    fi
+
     echo "╔══════════════════════════════════════════╗"
     echo "║        Hermes-WRT ImageBuilder           ║"
     echo "╠══════════════════════════════════════════╣"

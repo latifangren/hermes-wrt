@@ -71,7 +71,7 @@ on:
           - simple
           - minimal
       kernel_source:
-        description: 'Kernel source (TV box path)'
+        description: 'Kernel source (Khusus TV Box; diabaikan pada x86/RPi)'
         required: true
         default: 'ophub'
         type: choice
@@ -81,7 +81,7 @@ on:
           - sib0ndt
           - custom
       kernel_version:
-        description: 'Kernel version (auto = latest stable)'
+        description: 'Kernel version (Khusus TV Box; diabaikan pada x86/RPi)'
         required: true
         default: 'auto'
       disk_size:

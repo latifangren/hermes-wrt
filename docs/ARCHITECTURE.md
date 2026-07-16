@@ -34,9 +34,8 @@ imagebuilder.sh
 | `x86-64` | `x86/64` | `generic` |
 | `bcm2710-rpi-3b` | `bcm27xx/bcm2710` | `rpi-3` |
 | `bcm2711-rpi-4b` | `bcm27xx/bcm2711` | `rpi-4` |
-| `generic-*`, `qemu`, `virt` | `armsr/armv8` | `generic` |
 
-`build_official()` calls `run_make()`, which invokes `make image` inside the downloaded ImageBuilder directory. Output `.img.gz` files are collected from `bin/targets/` and moved to `out/`.
+`build_official()` calls `run_make()`, yang mengabaikan kernel pihak ketiga dan menggunakan kernel resmi OpenWrt/ImmortalWrt bawaan target profile. Output `.img.gz` disalin dari `bin/targets/` ke `out/`.
 
 ### Path B — TV Boxes (Amlogic / Rockchip / Allwinner)
 
