@@ -46,7 +46,12 @@ on:
           - s905x3-x96max
           - s905x3-x96air
           - s905x3-h96max
+          - s905x4-advan
           - s905x4-generic
+          - s905w-x96mini
+          - s905w-tx3mini
+          - s905w-x96w
+          - s905lb-q96mini
           - s912-generic
           - s922x-gtking
           # Allwinner & Rockchip TV Box
@@ -111,6 +116,24 @@ on:
         options:
           - 'true'
           - 'false'
+      enable_telegram_bot:
+        description: 'Enable Telegram Bot Control'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      telegram_bot_token:
+        description: 'Telegram Bot Token'
+        required: false
+        default: ''
+        type: string
+      telegram_chat_id:
+        description: 'Telegram Chat ID'
+        required: false
+        default: ''
+        type: string
 
 env:
   TZ: Asia/Jakarta
@@ -156,6 +179,9 @@ jobs:
           ENABLE_TUNNELS=${{ inputs.enable_tunnels }}
           ENABLE_MODEM=${{ inputs.enable_modem }}
           ENABLE_KIDDIN9_FEED=false
+          ENABLE_TELEGRAM_BOT=${{ inputs.enable_telegram_bot }}
+          TELEGRAM_BOT_TOKEN="${{ inputs.telegram_bot_token }}"
+          TELEGRAM_CHAT_ID="${{ inputs.telegram_chat_id }}"
           EOF
 
       - name: Build

@@ -1,0 +1,208 @@
+#!/bin/bash
+# ====================================================================
+# Hermes-WRT Telegram Bot Service (hbot)
+# Mengontrol router Hermes-WRT menggunakan Telegram Bot API
+# ====================================================================
+
+# Konfigurasi Default (Diambil via UCI config jika ada)
+BOT_TOKEN=""
+CHAT_ID=""
+POLL_INTERVAL=3
+OFFSET_FILE="/tmp/hbot_offset"
+
+# Load UCI configuration if available
+if command -v uci &>/dev/null; then
+    BOT_TOKEN=$(uci -q get hermes.telegram.bot_token || echo "")
+    CHAT_ID=$(uci -q get hermes.telegram.chat_id || echo "")
+    # Alternatif dari environment
+    [ -z "$BOT_TOKEN" ] && BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
+    [ -z "$CHAT_ID" ] && CHAT_ID="${TELEGRAM_CHAT_ID:-}"
+fi
+
+# Log helper
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
+
+# Cek prasyarat
+if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ]; then
+    log_msg "ERROR: Bot Token atau Chat ID belum dikonfigurasi!"
+    exit 1
+fi
+
+TELEGRAM_API="https://api.telegram.org/bot${BOT_TOKEN}"
+
+# Kirim pesan teks
+send_message() {
+    local target_chat=$1
+    local text=$2
+    local parse_mode=${3:-"HTML"}
+    curl -s -X POST "${TELEGRAM_API}/sendMessage" \
+        -d "chat_id=${target_chat}" \
+        -d "text=${text}" \
+        -d "parse_mode=${parse_mode}" >/dev/null
+}
+
+# Format System Info
+get_sys_info() {
+    local model="Unknown Device"
+    [ -f /tmp/sysinfo/model ] && model=$(cat /tmp/sysinfo/model)
+
+    local temp="N/A"
+    if [ -f /sys/class/thermal/thermal_zone0/temp ]; then
+        local raw_temp=$(cat /sys/class/thermal/thermal_zone0/temp)
+        temp="$((raw_temp / 1000))°C"
+    fi
+
+    local up_str=$(uptime -p)
+    local load=$(uptime | awk -F'load average:' '{print $2}' | xargs)
+    local mem_total=$(free -m | awk '/Mem:/{print $2}')
+    local mem_used=$(free -m | awk '/Mem:/{print $3}')
+    local mem_pct=$(( mem_used * 100 / mem_total ))
+
+    # Get VPN statuses
+    local oc_status="🔴 MATI"
+    local nk_status="🔴 MATI"
+    local pw_status="🔴 MATI"
+    pkill -0 -f "mihomo" &>/dev/null && oc_status="🟢 HIDUP"
+    /etc/init.d/nikki status &>/dev/null && nk_status="🟢 HIDUP"
+    /etc/init.d/passwall status &>/dev/null && pw_status="🟢 HIDUP"
+
+    local wan_ip=$(curl -s --connect-timeout 3 ifconfig.me || echo "N/A")
+
+    cat <<EOF
+<b>💎 HERMES-WRT ROUTER STATUS 💎</b>
+━━━━━━━━━━━━━━━━━━
+📟 <b>Model:</b> ${model}
+🌡️ <b>Temperatur CPU:</b> ${temp}
+⏱️ <b>Uptime:</b> ${up_str}
+📈 <b>Load Total:</b> ${load}
+💾 <b>RAM:</b> ${mem_used}MB / ${mem_total}MB (${mem_pct}%)
+🛡️ <b>IP Publik:</b> ${wan_ip}
+━━━━━━━━━━━━━━━━━━
+🔌 <b>Tunneling Services:</b>
+• OpenClash: ${oc_status}
+• Nikki: ${nk_status}
+• Passwall: ${pw_status}
+━━━━━━━━━━━━━━━━━━
+<i>Gunakan perintah:</i>
+/status - Status sistem
+/openclash_on | /openclash_off
+/nikki_on | /nikki_off
+/passwall_on | /passwall_off
+/reboot - Reboot router
+EOF
+}
+
+# Parsing and handling command
+handle_command() {
+    local chat=$1
+    local cmd=$2
+    
+    # Validasi Chat ID
+    if [ "$chat" != "$CHAT_ID" ]; then
+        log_msg "Warning: Command dari unauthorized chat ID: $chat"
+        send_message "$chat" "⛔ Anda tidak memiliki akses kontrol ke router ini!"
+        return
+    fi
+    
+    case "$cmd" in
+        "/start"|"/help")
+            local welcome_text="Halo! Selamat datang di Hermes-WRT Bot Control. Gunakan menu atau commands untuk berinteraksi dengan router Anda."
+            send_message "$chat" "$welcome_text"
+            send_message "$chat" "$(get_sys_info)"
+            ;;
+        "/status")
+            send_message "$chat" "$(get_sys_info)"
+            ;;
+        "/openclash_on")
+            send_message "$chat" "⏳ Menghidupkan OpenClash..."
+            /etc/init.d/openclash start >/dev/null 2>&1
+            sleep 3
+            send_message "$chat" "✅ OpenClash berhasil dipicu untuk start."
+            ;;
+        "/openclash_off")
+            send_message "$chat" "⏳ Mematikan OpenClash..."
+            /etc/init.d/openclash stop >/dev/null 2>&1
+            sleep 2
+            send_message "$chat" "❌ OpenClash dimatikan."
+            ;;
+        "/nikki_on")
+            send_message "$chat" "⏳ Menghidupkan Nikki..."
+            /etc/init.d/nikki start >/dev/null 2>&1
+            sleep 2
+            send_message "$chat" "✅ Nikki diaktifkan."
+            ;;
+        "/nikki_off")
+            send_message "$chat" "⏳ Mematikan Nikki..."
+            /etc/init.d/nikki stop >/dev/null 2>&1
+            sleep 2
+            send_message "$chat" "❌ Nikki dinonaktifkan."
+            ;;
+        "/passwall_on")
+            send_message "$chat" "⏳ Menghidupkan Passwall..."
+            /etc/init.d/passwall start >/dev/null 2>&1
+            sleep 2
+            send_message "$chat" "✅ Passwall diaktifkan."
+            ;;
+        "/passwall_off")
+            send_message "$chat" "⏳ Mematikan Passwall..."
+            /etc/init.d/passwall stop >/dev/null 2>&1
+            sleep 2
+            send_message "$chat" "❌ Passwall dinonaktifkan."
+            ;;
+        "/reboot")
+            send_message "$chat" "⚠️ Menyalakan ulang router sekarang..."
+            sleep 2
+            reboot
+            ;;
+        *)
+            send_message "$chat" "❓ Perintah tidak dikenali. Ketik /status untuk daftar perintah."
+            ;;
+    esac
+}
+
+# Inisialisasi bot offset
+offset=0
+[ -f "$OFFSET_FILE" ] && offset=$(cat "$OFFSET_FILE")
+
+log_msg "Hermes-WRT Bot Aktif. Menunggu pesan masuk..."
+send_message "$CHAT_ID" "🚀 Hermes-WRT Bot Control untuk router Anda telah aktif!"
+
+# Main Event Loop (Polling)
+while true; do
+    # Fetch updates
+    response=$(curl -s -G --connect-timeout 5 "${TELEGRAM_API}/getUpdates" \
+        --data-urlencode "offset=${offset}" \
+        --data-urlencode "timeout=2")
+    
+    if [ -n "$response" ]; then
+        # Check jika response valid JSON
+        ok_status=$(echo "$response" | jq -r '.ok' 2>/dev/null)
+        if [ "$ok_status" = "true" ]; then
+            # Parse updates
+            update_ids=$(echo "$response" | jq '.result[].update_id' 2>/dev/null)
+            
+            for upd_id in $update_ids; do
+                if [ -n "$upd_id" ] && [ "$upd_id" != "null" ]; then
+                    # Ambil chat_id dan text commands
+                    chat_id=$(echo "$response" | jq -r ".result[] | select(.update_id == ${upd_id}) | .message.chat.id" 2>/dev/null | head -1)
+                    text=$(echo "$response" | jq -r ".result[] | select(.update_id == ${upd_id}) | .message.text" 2>/dev/null | head -1)
+                    
+                    if [ -n "$chat_id" ] && [ -n "$text" ] && [ "$text" != "null" ]; then
+                        log_msg "Menerima pesan '$text' dari chat id: $chat_id"
+                        handle_command "$chat_id" "$text"
+                    fi
+                    
+                    # Update offset agar pesan tidak diproses ulang
+                    offset=$((upd_id + 1))
+                    echo "$offset" > "$OFFSET_FILE"
+                fi
+            done
+        else
+            log_msg "Gagal fetch updates: $(echo "$response" | jq -c '.description' 2>/dev/null)"
+        fi
+    fi
+    
+    sleep "$POLL_INTERVAL"
+done

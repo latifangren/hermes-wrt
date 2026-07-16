@@ -20,4 +20,19 @@ if [ -d /www/luci-static/luxe ]; then
     uci commit luci
 fi
 
+# Set executable permissions
+[ -f /usr/bin/hdev ] && chmod +x /usr/bin/hdev
+if [ -f /usr/bin/hbot ]; then
+    chmod +x /usr/bin/hbot
+    chmod +x /etc/init.d/hbot
+    
+    # Enable and start hbot service if configured
+    local enabled=$(uci -q get hermes.telegram.enabled || echo "0")
+    if [ "$enabled" = "1" ]; then
+        /etc/init.d/hbot enable
+    else
+        /etc/init.d/hbot disable
+    fi
+fi
+
 exit 0

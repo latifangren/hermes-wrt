@@ -234,6 +234,25 @@ inject_files() {
         cp -rf "$FILES_PATH/." "files/" 2>/dev/null
         ok "Custom files injected from files/"
     fi
+
+    # Dynamically inject hermes configurations
+    mkdir -p "files/etc/config"
+    cat > "files/etc/config/hermes" <<EOF
+config hermes 'telegram'
+	option enabled '$( [[ "${ENABLE_TELEGRAM_BOT:-false}" == "true" ]] && echo "1" || echo "0" )'
+	option bot_token '${TELEGRAM_BOT_TOKEN:-}'
+	option chat_id '${TELEGRAM_CHAT_ID:-}'
+EOF
+
+    # Clean up disabled tools to prevent image bloat
+    if [[ "${ENABLE_HERMES_CLI:-true}" != "true" ]]; then
+        rm -f "files/usr/bin/hdev"
+    fi
+    if [[ "${ENABLE_TELEGRAM_BOT:-false}" != "true" ]]; then
+        rm -f "files/usr/bin/hbot"
+        rm -f "files/etc/init.d/hbot"
+    fi
+    ok "Dynamic Hermes configurations written (Telegram Bot: ${ENABLE_TELEGRAM_BOT:-false})"
 }
 
 # ── Inject custom packages ──

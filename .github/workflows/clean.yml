@@ -1,0 +1,200 @@
+name: Clean Repository Actions
+
+on:
+  workflow_dispatch:
+    inputs:
+      clean_option:
+        description: 'Pilih opsi pembersihan'
+        required: true
+        default: 'cache_tmp_logs'
+        type: choice
+        options:
+          - 'cache_tmp_logs'
+          - 'artifacts'
+          - 'workflow_caches'
+          - 'old_workflows'
+          - 'all_clean'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+      
+    steps:
+      - name: Checkout repository
+        if: ${{ inputs.clean_option == 'cache_tmp_logs' || inputs.clean_option == 'all_clean' }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clean logs, cache, and tmp directories
+        if: ${{ inputs.clean_option == 'cache_tmp_logs' || inputs.clean_option == 'all_clean' }}
+        run: |
+          echo "Memulai pembersihan logs, cache, dan direktori tmp..."
+          
+          # Hapus file logs
+          echo "Menghapus file log..."
+          find . -type f \( -name "*.log" -o -name "*.log.*" \) -print -delete || true
+          
+          # Hapus direktori cache
+          echo "Menghapus direktori cache..."
+          find . -type d \( -name "cache" -o -name ".cache" -o -name "__pycache__" -o -name ".pytest_cache" \) -print -exec rm -rf {} + 2>/dev/null || true
+          
+          # Hapus direktori tmp/temp
+          echo "Menghapus direktori tmp..."
+          find . -type d \( -name "tmp" -o -name "temp" -o -name ".tmp" -o -name ".temp" \) -print -exec rm -rf {} + 2>/dev/null || true
+          
+          # Hapus sisa-sisa kompilasi lokal
+          echo "Menghapus barang kompilasi lama..."
+          find . -type d \( -name "dist" -o -name "build" -o -name "out" \) -print -exec rm -rf {} + 2>/dev/null || true
+          
+          echo "Pembersihan direktori lokal selesai!"
+          echo "Ukuran direktori saat ini:"
+          du -sh . 2>/dev/null || true
+
+      - name: Delete all workflow artifacts
+        if: ${{ inputs.clean_option == 'artifacts' || inputs.inputs.clean_option == 'all_clean' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            
+            let page = 1;
+            let hasMore = true;
+            let totalDeleted = 0;
+            
+            while (hasMore) {
+              const response = await github.rest.actions.listArtifactsForRepo({
+                owner,
+                repo,
+                per_page: 100,
+                page: page
+              });
+              
+              const artifacts = response.data.artifacts;
+              
+              if (artifacts.length === 0) {
+                hasMore = false;
+                break;
+              }
+              
+              for (const artifact of artifacts) {
+                console.log(`Menghapus artifact: ${artifact.name} (ID: ${artifact.id})`);
+                try {
+                  await github.rest.actions.deleteArtifact({
+                    owner,
+                    repo,
+                    artifact_id: artifact.id
+                  });
+                  totalDeleted++;
+                } catch (error) {
+                  console.error(`Gagal menghapus ${artifact.name}: ${error.message}`);
+                }
+              }
+              page++;
+            }
+            console.log(`\nTotal artifact dihapus: ${totalDeleted}`);
+
+      - name: Delete all workflow caches
+        if: ${{ inputs.clean_option == 'workflow_caches' || inputs.clean_option == 'all_clean' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            
+            console.log("Mengecek cache actions GitHub...");
+            
+            let totalDeleted = 0;
+            let page = 1;
+            let hasMore = true;
+            
+            while (hasMore) {
+              try {
+                const response = await github.rest.actions.getActionsCacheList({
+                  owner,
+                  repo,
+                  per_page: 100,
+                  page: page
+                });
+                
+                const caches = response.data.actions_caches;
+                
+                if (caches.length === 0) {
+                  hasMore = false;
+                  break;
+                }
+                
+                for (const cache of caches) {
+                  console.log(`Menghapus cache key: ${cache.key} (ID: ${cache.id})`);
+                  try {
+                    await github.rest.actions.deleteActionsCacheById({
+                      owner,
+                      repo,
+                      cache_id: cache.id
+                    });
+                    totalDeleted++;
+                  } catch (error) {
+                    console.error(`Gagal menghapus cache ${cache.key}: ${error.message}`);
+                  }
+                }
+                page++;
+              } catch (error) {
+                console.error(`Gagal mengambil data cache: ${error.message}`);
+                hasMore = false;
+              }
+            }
+            console.log(`\nTotal cache dihapus: ${totalDeleted}`);
+
+      - name: Delete old workflow runs (keep latest 5)
+        if: ${{ inputs.clean_option == 'old_workflows' || inputs.clean_option == 'all_clean' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const keepRuns = 5;
+            
+            const workflows = await github.rest.actions.listRepoWorkflows({
+              owner,
+              repo
+            });
+            
+            let totalDeleted = 0;
+            
+            for (const workflow of workflows.data.workflows) {
+              console.log(`Memproses workflow: ${workflow.name} (ID: ${workflow.id})`);
+              
+              const runs = await github.rest.actions.listWorkflowRuns({
+                owner,
+                repo,
+                workflow_id: workflow.id,
+                per_page: 100
+              });
+              
+              const allRuns = runs.data.workflow_runs;
+              
+              if (allRuns.length > keepRuns) {
+                allRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                const runsToDelete = allRuns.slice(keepRuns);
+                
+                console.log(`Menyimpan ${keepRuns} runs terbaru, menghapus ${runsToDelete.length} run lama`);
+                
+                for (const run of runsToDelete) {
+                  try {
+                    await github.rest.actions.deleteWorkflowRun({
+                      owner,
+                      repo,
+                      run_id: run.id
+                    });
+                    totalDeleted++;
+                  } catch (error) {
+                    console.error(`Gagal menghapus run ID ${run.id}: ${error.message}`);
+                  }
+                }
+              }
+            }
+            console.log(`\nTotal runs dihapus: ${totalDeleted}`);

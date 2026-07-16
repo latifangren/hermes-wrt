@@ -1,0 +1,335 @@
+#!/bin/bash
+# ====================================================================
+# Hermes-WRT CLI Helper (hdev)
+# Tool interaktif untuk mengelola core VPN/tunnel & status sistem
+# ====================================================================
+
+# Cek root
+if [ "$EUID" -ne 0 ]; then
+    echo "Error: Silakan jalankan script ini sebagai root (sudo)!"
+    exit 1
+fi
+
+# Warna
+PURPLE='\033[95m'
+BLUE='\033[94m'
+GREEN='\033[92m'
+YELLOW='\033[93m'
+RED='\033[91m'
+RESET='\033[0m'
+
+BOLD='\033[1m'
+
+# Helpers log
+log_info()  { echo -e "${BLUE}[INFO]${RESET} $1"; }
+log_success() { echo -e "${GREEN}[SUKSES]${RESET} $1"; }
+log_warn() { echo -e "${YELLOW}[PERINGATAN]${RESET} $1"; }
+log_error() { echo -e "${RED}[ERROR]${RESET} $1"; }
+log_step() { echo -e "${PURPLE}*${RESET} $1"; }
+
+# Pendeteksian arsitektur
+get_arch() {
+    local arch=""
+    if [ -f /etc/os-release ]; then
+        arch=$(grep "OPENWRT_ARCH" /etc/os-release | awk -F '"' '{print $2}')
+    fi
+    [ -z "$arch" ] && arch=$(uname -m)
+    echo "$arch"
+}
+
+# Pemetaan arsitektur untuk binary core
+map_arch_core() {
+    local raw_arch=$1
+    case "$raw_arch" in
+        aarch64*|arm64*|armv8*)
+            echo "arm64"
+            ;;
+        x86_64|amd64)
+            echo "amd64"
+            ;;
+        armv7*|armhf)
+            echo "armv7"
+            ;;
+        i386|i686|x86)
+            echo "386"
+            ;;
+        *)
+            echo "$raw_arch"
+            ;;
+    esac
+}
+
+# Download helper
+download_file() {
+    local url=$1
+    local dest=$2
+    log_info "Mengunduh: $url"
+    if command -v aria2c &>/dev/null; then
+        aria2c -x 4 -s 4 -o "$(basename "$dest")" -d "$(dirname "$dest")" "$url"
+    else
+        wget -q -O "$dest" "$url"
+    fi
+}
+
+# Tampilkan informasi sistem
+show_system_info() {
+    clear
+    echo -e "${BOLD}${BLUE}==================================================${RESET}"
+    echo -e "              HERMES-WRT SYSTEM INFO              "
+    echo -e "${BOLD}${BLUE}==================================================${RESET}"
+    
+    local model="Unknown"
+    local temp="N/A"
+    [ -f /tmp/sysinfo/model ] && model=$(cat /tmp/sysinfo/model)
+    
+    # CPU Temp
+    if [ -f /sys/class/thermal/thermal_zone0/temp ]; then
+        local raw_temp=$(cat /sys/class/thermal/thermal_zone0/temp)
+        temp="$((raw_temp / 1000))°C"
+    elif command -v sensors &>/dev/null; then
+        temp=$(sensors | grep -i 'temp1' | head -1 | awk '{print $2}')
+    fi
+
+    # Memory
+    local mem_total=$(free -h | awk '/Mem:/{print $2}')
+    local mem_used=$(free -h | awk '/Mem:/{print $3}')
+    local mem_free=$(free -h | awk '/Mem:/{print $4}')
+
+    # OS Info
+    local desc="OpenWrt"
+    [ -f /etc/openwrt_release ] && desc=$(grep "DISTRIB_DESCRIPTION" /etc/openwrt_release | cut -d"'" -f2)
+
+    echo -e "OS          : $desc"
+    echo -e "Model       : $model"
+    echo -e "Kernel      : $(uname -r)"
+    echo -e "Arsitektur  : $(get_arch) (Mapped: $(map_arch_core "$(get_arch)"))"
+    echo -e "CPU Temp    : $temp"
+    echo -e "RAM (Total) : $mem_total"
+    echo -e "RAM (Used)  : $mem_used / $mem_free free"
+    echo -e "Uptime      : $(uptime -p)"
+    echo -e "${BOLD}${BLUE}==================================================${RESET}"
+    read -p "Tekan Enter untuk kembali ke menu..." temp_input
+}
+
+# Kelola Core MIHOMO (Clash Meta)
+update_mihomo_core() {
+    clear
+    echo -e "${BOLD}${BLUE}=== UPDATE MIHOMO (CLASH META) CORE ===${RESET}"
+    local current_ver="N/A"
+    [ -x /usr/bin/mihomo ] && current_ver=$(/usr/bin/mihomo -v 2>/dev/null | head -1 | awk '{print $3}')
+    echo "Versi terinstal: $current_ver"
+    
+    local arch=$(map_arch_core "$(get_arch)")
+    local target_filename=""
+    
+    case "$arch" in
+        amd64) target_filename="mihomo-linux-amd64" ;;
+        arm64) target_filename="mihomo-linux-arm64" ;;
+        armv7) target_filename="mihomo-linux-armv7" ;;
+        *) log_error "Arsitektur $arch tidak didukung secara otomatis."; return 1 ;;
+    esac
+    
+    # Dapatkan rilis tag terbaru
+    log_info "Mengecek rilis terbaru di GitHub..."
+    local tag=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
+    if [ -z "$tag" ]; then
+        log_error "Gagal mendeteksi rilis terbaru dari API GitHub!"
+        read -p "Tekan Enter untuk kembali..." temp
+        return 1
+    fi
+    
+    echo "Rilis Terbaru: $tag ($arch)"
+    read -p "Apakah Anda ingin melanjutkan pengunduhan? (y/n): " confirm
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        local download_url="https://github.com/MetaCubeX/mihomo/releases/download/${tag}/${target_filename}-${tag}.gz"
+        local temp_dest="/tmp/mihomo.gz"
+        
+        rm -f "$temp_dest" "/tmp/mihomo"
+        if download_file "$download_url" "$temp_dest"; then
+            log_info "Ekstraksi core..."
+            gunzip -d "$temp_dest" 2>/dev/null
+            if [ -f "/tmp/mihomo" ]; then
+                log_info "Memasangkan core baru..."
+                [ -f /usr/bin/mihomo ] && mv /usr/bin/mihomo /usr/bin/mihomo.bak
+                mv /tmp/mihomo /usr/bin/mihomo
+                chmod +x /usr/bin/mihomo
+                log_success "Mihomo core berhasil diperbarui ke versi $tag!"
+                [ -f /usr/bin/mihomo.bak ] && rm -f /usr/bin/mihomo.bak
+            else
+                log_error "Gagal mengekstrak core!"
+            fi
+        else
+            log_error "Pengunduhan gagal!"
+        fi
+    fi
+    read -p "Tekan Enter untuk kembali..." temp
+}
+
+# Kelola Core Sing-Box (Untuk Nikki/Passwall)
+update_singbox_core() {
+    clear
+    echo -e "${BOLD}${BLUE}=== UPDATE SING-BOX CORE ===${RESET}"
+    local current_ver="N/A"
+    [ -x /usr/bin/sing-box ] && current_ver=$(/usr/bin/sing-box version 2>/dev/null | head -1 | awk '{print $3}')
+    echo "Versi terinstal: $current_ver"
+    
+    local arch=$(map_arch_core "$(get_arch)")
+    local target_filename=""
+    
+    case "$arch" in
+        amd64) target_filename="linux-amd64" ;;
+        arm64) target_filename="linux-arm64" ;;
+        armv7) target_filename="linux-armv7hf" ;;
+        *) log_error "Arsitektur $arch tidak didukung secara otomatis."; return 1 ;;
+    esac
+    
+    log_info "Mengecek rilis terbaru di GitHub..."
+    local tag=$(curl -s https://api.github.com/repos/SagerNet/sing-box/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
+    if [ -z "$tag" ]; then
+        log_error "Gagal mendeteksi rilis terbaru dari API GitHub!"
+        read -p "Tekan Enter untuk kembali..." temp
+        return 1
+    fi
+    
+    local version_clean=${tag#v}
+    echo "Rilis Terbaru: $tag ($arch)"
+    read -p "Apakah Anda ingin melanjutkan pengunduhan? (y/n): " confirm
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        local download_url="https://github.com/SagerNet/sing-box/releases/download/${tag}/sing-box-${version_clean}-${target_filename}.tar.gz"
+        local temp_dest="/tmp/sing-box.tar.gz"
+        
+        rm -f "$temp_dest"
+        rm -rf "/tmp/sing-box-extract"
+        if download_file "$download_url" "$temp_dest"; then
+            log_info "Mengekstrak package..."
+            mkdir -p /tmp/sing-box-extract
+            tar -xzf "$temp_dest" -C /tmp/sing-box-extract
+            local extracted_bin=$(find /tmp/sing-box-extract -type f -name "sing-box" | head -1)
+            
+            if [ -f "$extracted_bin" ]; then
+                log_info "Memasangkan core baru..."
+                [ -f /usr/bin/sing-box ] && mv /usr/bin/sing-box /usr/bin/sing-box.bak
+                mv "$extracted_bin" /usr/bin/sing-box
+                chmod +x /usr/bin/sing-box
+                log_success "Sing-Box core berhasil diperbarui ke versi $tag!"
+                [ -f /usr/bin/sing-box.bak ] && rm -f /usr/bin/sing-box.bak
+            else
+                log_error "File binary sing-box tidak ditemukan hasil ekstraksi!"
+            fi
+            rm -rf /tmp/sing-box-extract "$temp_dest"
+        else
+            log_error "Pengunduhan gagal!"
+        fi
+    fi
+    read -p "Tekan Enter untuk kembali..." temp
+}
+
+# Manajemen Service & Status Tunnel
+manage_tunnels() {
+    while true; do
+        clear
+        echo -e "${BOLD}${BLUE}==================================================${RESET}"
+        echo -e "              HERMES TUNNEL MANAGER               "
+        echo -e "${BOLD}${BLUE}==================================================${RESET}"
+        
+        # Check Status
+        local oc_status="NONAKTIF"
+        local nk_status="NONAKTIF"
+        local pw_status="NONAKTIF"
+        
+        pgrep -x "openclash" &>/dev/null && oc_status="${GREEN}${BOLD}AKTIF (PID: $(pgrep -x openclash))${RESET}"
+        pkill -0 -f "mihomo" &>/dev/null && oc_status="${GREEN}${BOLD}AKTIF (Mihomo Core Running)${RESET}"
+        /etc/init.d/nikki status &>/dev/null && nk_status="${GREEN}${BOLD}AKTIF${RESET}"
+        /etc/init.d/passwall status &>/dev/null && pw_status="${GREEN}${BOLD}AKTIF${RESET}"
+        
+        echo -e "1. OpenClash Status : $oc_status"
+        echo -e "2. Nikki Status     : $nk_status"
+        echo -e "3. Passwall Status  : $pw_status"
+        echo -e "--------------------------------------------------"
+        echo -e "4. Restart Firewall"
+        echo -e "5. Restart Network"
+        echo -e "0. Kembali ke Menu Utama"
+        echo -e "${BOLD}${BLUE}==================================================${RESET}"
+        
+        read -p "Pilihan Anda: " st_opt
+        case "$st_opt" in
+            1)
+                log_info "Mengubah status OpenClash..."
+                /etc/init.d/openclash restart
+                read -p "Tekan Enter..." temp
+                ;;
+            2)
+                log_info "Mengubah status Nikki..."
+                if /etc/init.d/nikki status &>/dev/null; then
+                    /etc/init.d/nikki stop
+                else
+                    /etc/init.d/nikki start
+                fi
+                read -p "Tekan Enter..." temp
+                ;;
+            3)
+                log_info "Mengubah status Passwall..."
+                if /etc/init.d/passwall status &>/dev/null; then
+                    /etc/init.d/passwall stop
+                else
+                    /etc/init.d/passwall start
+                fi
+                read -p "Tekan Enter..." temp
+                ;;
+            4)
+                log_info "Merestart firewall..."
+                fw3 restart
+                log_success "Firewall direstart!"
+                read -p "Tekan Enter..." temp
+                ;;
+            5)
+                log_info "Merestart network..."
+                /etc/init.d/network restart
+                log_success "Network direstart!"
+                read -p "Tekan Enter..." temp
+                ;;
+            0)
+                break
+                ;;
+            *)
+                log_warn "Pilihan tidak valid!"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# Menu Utama
+main_menu() {
+    while true; do
+        clear
+        echo -e "${BOLD}${GREEN}==================================================${RESET}"
+        echo -e "         ${BOLD}HERMES-WRT MANAGEMENT UTILITY (hdev)${RESET}     "
+        echo -e "${BOLD}${GREEN}==================================================${RESET}"
+        echo -e "1. Tampilkan Informasi Sistem"
+        echo -e "2. Perbarui Core Mihomo (Clash Meta)"
+        echo -e "3. Perbarui Core Sing-Box"
+        echo -e "4. Kelola Tunnel & Service Network"
+        echo -e "0. Keluar"
+        echo -e "${BOLD}${GREEN}==================================================${RESET}"
+        
+        read -p "Pilihan Anda (0-4): " opt
+        case "$opt" in
+            1) show_system_info ;;
+            2) update_mihomo_core ;;
+            3) update_singbox_core ;;
+            4) manage_tunnels ;;
+            0)
+                echo "Sampai jumpa! Terima kasih telah menggunakan Hermes-WRT."
+                exit 0
+                ;;
+            *)
+                log_warn "Pilihan tidak valid!"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# Jalankan menu utama
+main_menu
