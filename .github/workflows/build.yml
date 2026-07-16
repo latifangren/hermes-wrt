@@ -40,13 +40,21 @@ on:
           # Amlogic TV Box
           - s905x-b860h
           - s905x-hg680p
-          - s905x2-b860hv5
-          - s905x2-hg680-fj
+          - s905x2-b860hv5-v1
+          - s905x2-b860hv5-v2
+          - s905x2-b860hv5-v3
+          - s905x2-hg680-fj-v1
+          - s905x2-hg680-fj-v2
+          - s905x2-hg680-fj-v3
           - s905x3-hk1
           - s905x3-x96max
           - s905x3-x96air
           - s905x3-h96max
           - s905x4-advan
+          - s905x4-v1
+          - s905x4-v2
+          - s905x4-v3
+          - s905x4-v4
           - s905x4-generic
           - s905w-x96mini
           - s905w-tx3mini
@@ -171,9 +179,30 @@ jobs:
 
       - name: Inject Config
         run: |
+          # ── Auto-mapping target device version ──
+          DEVICE="${{ inputs.device }}"
+          KERNEL_SRC="${{ inputs.kernel_source }}"
+          KERNEL_VER="${{ inputs.kernel_version }}"
+          if [[ "$DEVICE" == *"v1" ]]; then
+            KERNEL_SRC="armarchindo"
+            KERNEL_VER="6.1.66-dbai"
+          elif [[ "$DEVICE" == *"v2" ]]; then
+            KERNEL_SRC="armarchindo"
+            KERNEL_VER="6.4.11"
+          elif [[ "$DEVICE" == *"v3" ]]; then
+            KERNEL_SRC="armarchindo"
+            KERNEL_VER="6.2.2"
+          elif [[ "$DEVICE" == *"v4" ]]; then
+            KERNEL_SRC="armarchindo"
+            KERNEL_VER="5.4.265"
+          fi
+          
+          # Dapatkan strip version dari DEVICE name (s905x2-b860hv5-v1 => s905x2-b860hv5)
+          DEVICE_CLEAN=$(echo "$DEVICE" | sed -E 's/-v[1-4]$//')
+          
           cat >> hermes.conf << EOF
-          KERNEL_SOURCE=${{ inputs.kernel_source }}
-          KERNEL_VERSION=${{ inputs.kernel_version }}
+          KERNEL_SOURCE=${KERNEL_SRC}
+          KERNEL_VERSION=${KERNEL_VER}
           BUILD_VARIANT=${{ inputs.variant }}
           DISK_SIZE=${{ inputs.disk_size }}
           ENABLE_TUNNELS=${{ inputs.enable_tunnels }}
@@ -183,6 +212,8 @@ jobs:
           TELEGRAM_BOT_TOKEN="${{ inputs.telegram_bot_token }}"
           TELEGRAM_CHAT_ID="${{ inputs.telegram_chat_id }}"
           EOF
+          
+          echo "DEVICE_NAME=${DEVICE_CLEAN}" >> $GITHUB_ENV
 
       - name: Build
         id: build
@@ -196,7 +227,7 @@ jobs:
             exit 1
           fi
           chmod +x imagebuilder.sh
-          if sudo ./imagebuilder.sh "${{ inputs.source_name }}:${VERSION}" "${{ inputs.device }}" "${{ inputs.variant }}"; then
+          if sudo ./imagebuilder.sh "${{ inputs.source_name }}:${VERSION}" "${DEVICE_NAME:-${{ inputs.device }}}" "${{ inputs.variant }}"; then
             echo "status=success" >> $GITHUB_OUTPUT
           else
             echo "status=failed" >> $GITHUB_OUTPUT
