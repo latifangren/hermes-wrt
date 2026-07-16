@@ -33,6 +33,7 @@ pack_tvbox() {
 
     # ── Step 2: Create raw disk ──
     step "[2/6] Creating raw disk image (${DISK_SIZE:-1G})..."
+    mkdir -p "$OUT_TVBOX"
     rm -f "$disk_img"
     fallocate -l "${DISK_SIZE:-1G}" "$disk_img"
 
