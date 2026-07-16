@@ -243,19 +243,39 @@ download_kernel_armarchindo() {
     local out="$1" ver="${2:-auto}"
     step "  Kernel from armarchindo (${ver})"
     if [[ "${ver,,}" == "auto" ]]; then
-        local latest=$(curl -sL "https://api.github.com/repos/armarchindo/kernel/releases/latest" \
-            | grep -oE '"tag_name": "[^"]+"' | cut -d'"' -f4)
-        ver="${latest:-6.12.0}"
-        log "    Auto-selected: ${ver}"
+        ver="6.1.66-dbai"
+        log "    Auto-selected stable: ${ver}"
     fi
 
-    local base="https://github.com/armarchindo/kernel/releases/download/${ver}"
-    local files=("boot-${ver}.tar.gz" "dtb-${DEV_FAMILY}-${ver}.tar.gz" "modules-${ver}.tar.gz")
+    local target_filename="${ver,,}.tar.gz"
+    log "    Searching for kernel asset: ${target_filename} in armarchindo/kernel..."
+    local api_url="https://api.github.com/repos/armarchindo/kernel/releases"
+    local download_url=""
+    
+    download_url=$(curl -sL "$api_url" | jq -r ".[] | .assets[] | select(.name | ascii_downcase == \"${target_filename}\") | .browser_download_url" 2>/dev/null | head -1)
+
+    if [[ -z "$download_url" || "$download_url" == "null" ]]; then
+        # Fallback tebak URL ke tag kernel_dbai biasa
+        download_url="https://github.com/armarchindo/kernel/releases/download/kernel_dbai/${ver}.tar.gz"
+        log "    API rate limit/error. Trying fallback URL: ${download_url}"
+    fi
 
     mkdir -p "$out"
-    for f in "${files[@]}"; do
-        ariadl "${base}/${f}" "${out}/${f}" 2>/dev/null || warn "Failed: ${f}"
-    done
+    local pack_file="armarchindo-kernel-${ver}.tar.gz"
+
+    step "    Downloading unified armarchindo kernel..."
+    if ! ariadl "$download_url" "${out}/${pack_file}"; then
+        # Jika gagal (karena masalah case-sensitive di url fallback), coba tebak versi aslinya (misal caps DBAI)
+        local base_ver="${ver%-dbai}-DBAI"
+        [[ "$ver" == *"aw64"* ]] && base_ver="${ver%-aw64-dbai}-AW64-DBAI"
+        local fallback_url="https://github.com/armarchindo/kernel/releases/download/kernel_dbai/${base_ver}.tar.gz"
+        log "    Retrying with capitalized name: ${fallback_url}"
+        ariadl "$fallback_url" "${out}/${pack_file}"
+    fi
+
+    step "    Extracting unified kernel package..."
+    tar -xf "${out}/${pack_file}" -C "$out"
+    rm -f "${out}/${pack_file}"
     extract_kernel_tars "$out"
 }
 
