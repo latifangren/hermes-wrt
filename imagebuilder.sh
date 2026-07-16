@@ -287,9 +287,11 @@ build_package_list() {
         BASE+=" modemmanager modemmanager-rpcd luci-proto-modemmanager libmbim libqmi"
         BASE+=" sms-tool picocom minicom"
         BASE+=" luci-proto-ncm luci-proto-mbim luci-proto-3g"
-        # Custom local packages from packages/ folder
-        BASE+=" luci-app-rakitanmanager luci-app-nokia-status luci-app-mactodong"
-        BASE+=" xmm-modem luci-proto-xmm luci-proto-atc atc-fib-fm350_gl atc-fib-l8x0_gl"
+        # Custom local packages from packages/ folder (hanya didukung jika basis OS adalah IPK < 25)
+        if [[ "$SRC_MAJOR" -lt 25 ]]; then
+            BASE+=" luci-app-rakitanmanager luci-app-nokia-status luci-app-mactodong"
+            BASE+=" xmm-modem luci-proto-xmm luci-proto-atc atc-fib-fm350_gl atc-fib-l8x0_gl"
+        fi
 
         if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
             BASE+=" luci-app-3ginfo-lite luci-app-mmconfig"
