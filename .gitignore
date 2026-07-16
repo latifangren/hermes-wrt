@@ -3,3 +3,4 @@ imagebuilder/
 out/
 .pack_staging/
 tmp/
+/.tmp
