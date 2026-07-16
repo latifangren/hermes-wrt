@@ -258,6 +258,22 @@ EOF
 # ── Inject custom packages ──
 inject_packages() {
     step "Adding custom packages"
+    
+    # Pendeteksian & download dinamis dari repositori paket eksternal
+    local repo_url="https://github.com/latifangren/openwrt-custom-packages.git"
+    local tmp_dir="/tmp/hermes-custom-pkg"
+    
+    log "Mengunduh paket biner eksternal dari ${repo_url}..."
+    rm -rf "$tmp_dir"
+    if git clone --depth 1 "$repo_url" "$tmp_dir" &>/dev/null; then
+        mkdir -p "$PACKAGES_DIR"
+        find "$tmp_dir" -type f \( -name "*.ipk" -o -name "*.apk" \) -exec cp -f {} "$PACKAGES_DIR/" \; 2>/dev/null || true
+        ok "Paket eksternal berhasil ditarik secara dinamis!"
+    else
+        warn "Gagal mengklon repositori paket eksternal. Menggunakan paket lokal yang tersedia."
+    fi
+    rm -rf "$tmp_dir"
+
     cd "$IB_PATH"
     mkdir -p "packages"
     if [[ -d "$PACKAGES_DIR" ]]; then

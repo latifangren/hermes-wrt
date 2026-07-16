@@ -4,3 +4,5 @@ out/
 .pack_staging/
 tmp/
 /.tmp
+packages/*
+!packages/.gitkeep
