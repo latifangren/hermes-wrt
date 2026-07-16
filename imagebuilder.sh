@@ -379,16 +379,16 @@ inject_mihombreng() {
     local pkg_name="mihombreng-${ver}-${mih_arch}.${ext}"
     local lui_name="luci-app-mihombreng-${ver}_all.${ext}"
     [[ "$ext" == "apk" ]] && {
-        # workaround: di release v1.2.4 mihombreng apk aarch64 terdeteksi sebagai *.apk-all.apk atau nama lain
-        # cari lewat api github release assets yang persis berisi 'mihombreng-' * '-[arch].apk_or_tar_or_whatever'
+        # workaround: di release v1.2.4 mihombreng apk terdeteksi sebagai nama lain (misal double extension)
+        # cari lewat api github release assets yang persis berisi 'mihombreng-' * '.apk' dan tidak mengandung 'android' atau 'luci'
         local api_assets
         api_assets=$(curl -sSL "$tag_url" 2>/dev/null)
         local raw_pkg_name
-        raw_pkg_name=$(echo "$api_assets" | MIH_ARCH="$mih_arch" python3 -c "import json,sys,os; arch=os.environ.get('MIH_ARCH',''); assets=json.load(sys.stdin).get('assets',[]); print(next((a['name'] for a in assets if a['name'].startswith('mihombreng-') and a['name'].endswith('.apk') and arch in a['name']), ''))" 2>/dev/null)
+        raw_pkg_name=$(echo "$api_assets" | python3 -c "import json,sys; assets=json.load(sys.stdin).get('assets',[]); print(next((a['name'] for a in assets if a['name'].startswith('mihombreng-') and a['name'].endswith('.apk') and 'android' not in a['name'] and 'luci-app-' not in a['name']), ''))" 2>/dev/null)
         if [[ -n "$raw_pkg_name" ]]; then
             pkg_name="$raw_pkg_name"
         else
-            pkg_name="mihombreng-${ver}-${mih_arch}.apk"
+            pkg_name="mihombreng-${ver}-mihombreng-1.apk.apk"
         fi
         lui_name="luci-app-mihombreng-${ver}-all.apk"
     }
