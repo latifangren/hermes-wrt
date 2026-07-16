@@ -16,9 +16,20 @@ on:
           - openwrt
           - immortalwrt
       source_version:
-        description: 'Versi (misal: latest, 24.10.0, 23.05.5)'
+        description: 'Versi (Pilihan menu)'
         required: true
         default: 'latest'
+        type: choice
+        options:
+          - latest
+          - 25.12.5
+          - 24.10.0
+          - 23.05.5
+          - custom (Tulis manual di bawah)
+      custom_version:
+        description: 'Versi manual (Hanya jika pilih "custom" di atas)'
+        required: false
+        default: ''
         type: string
       device:
         description: 'Device'
@@ -141,8 +152,16 @@ jobs:
       - name: Build
         id: build
         run: |
+          VERSION="${{ inputs.source_version }}"
+          if [[ "$VERSION" =~ "custom" ]]; then
+            VERSION="${{ inputs.custom_version }}"
+          fi
+          if [[ -z "$VERSION" ]]; then
+            echo "ERROR: Custom version tidak boleh kosong!"
+            exit 1
+          fi
           chmod +x imagebuilder.sh
-          if sudo ./imagebuilder.sh "${{ inputs.source_name }}:${{ inputs.source_version }}" "${{ inputs.device }}" "${{ inputs.variant }}"; then
+          if sudo ./imagebuilder.sh "${{ inputs.source_name }}:${VERSION}" "${{ inputs.device }}" "${{ inputs.variant }}"; then
             echo "status=success" >> $GITHUB_OUTPUT
           else
             echo "status=failed" >> $GITHUB_OUTPUT
