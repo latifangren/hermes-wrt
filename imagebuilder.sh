@@ -340,16 +340,37 @@ build_package_list() {
     BASE+=" luci-theme-bootstrap luci-theme-material luci-theme-luxe"
 
     # — Tunnels —
-    if [[ "${ENABLE_TUNNELS:-true}" == "true" ]]; then
+    local tunnel_opt="${TUNNEL_TYPE:-all}"
+    if [[ "$tunnel_opt" != "none" ]]; then
         TUNNEL+=" coreutils-nohup bash dnsmasq-full curl ca-certificates ipset ip-full"
         TUNNEL+=" libcap libcap-bin ruby ruby-yaml kmod-tun kmod-inet-diag unzip kmod-nft-tproxy"
         TUNNEL+=" microsocks"
+        
+        # Check feed availability
+        local feed_ok=false
         if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
-            TUNNEL+=" dns2tcp tcping"
-            TUNNEL+=" luci-app-openclash"
-            TUNNEL+=" nikki luci-app-nikki mihombreng luci-app-mihombreng"
+            feed_ok=true
+        fi
+
+        if [[ "$feed_ok" == true ]]; then
             TUNNEL+=" chinadns-ng resolveip dns2socks ipt2socks"
-            TUNNEL+=" xray-core xray-plugin luci-app-passwall"
+            
+            # Filter per tipe tunnel terpilh
+            if [[ "$tunnel_opt" == "all" || "$tunnel_opt" == *"openclash"* ]]; then
+                TUNNEL+=" dns2tcp tcping luci-app-openclash"
+            fi
+            
+            if [[ "$tunnel_opt" == "all" || "$tunnel_opt" == *"nikki"* ]]; then
+                TUNNEL+=" nikki luci-app-nikki"
+            fi
+            
+            if [[ "$tunnel_opt" == "all" || "$tunnel_opt" == *"mihombreng"* ]]; then
+                TUNNEL+=" mihombreng luci-app-mihombreng"
+            fi
+            
+            if [[ "$tunnel_opt" == "all" || "$tunnel_opt" == *"passwall"* ]]; then
+                TUNNEL+=" xray-core xray-plugin luci-app-passwall"
+            fi
         fi
         BASE+=" $TUNNEL"
     fi

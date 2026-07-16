@@ -108,14 +108,20 @@ on:
           - 2G
           - 4G
           - 8G
-      enable_tunnels:
-        description: 'Include tunnel packages'
-        required: false
-        default: 'true'
+      tunnel_type:
+        description: 'Pilih VPN Tunneling Terpasang'
+        required: true
+        default: 'all'
         type: choice
         options:
-          - 'true'
-          - 'false'
+          - all
+          - openclash
+          - nikki
+          - mihombreng
+          - passwall
+          - openclash-nikki
+          - openclash-mihombreng
+          - none
       enable_modem:
         description: 'Include modem packages'
         required: false
@@ -205,7 +211,7 @@ jobs:
           KERNEL_VERSION=${KERNEL_VER}
           BUILD_VARIANT=${{ inputs.variant }}
           DISK_SIZE=${{ inputs.disk_size }}
-          ENABLE_TUNNELS=${{ inputs.enable_tunnels }}
+          TUNNEL_TYPE=${{ inputs.tunnel_type }}
           ENABLE_MODEM=${{ inputs.enable_modem }}
           ENABLE_KIDDIN9_FEED=false
           ENABLE_TELEGRAM_BOT=${{ inputs.enable_telegram_bot }}
