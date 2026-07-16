@@ -290,9 +290,9 @@ build_package_list() {
         # Custom local packages from packages/ folder
         BASE+=" luci-app-rakitanmanager luci-app-nokia-status luci-app-mactodong"
         BASE+=" xmm-modem luci-proto-xmm luci-proto-atc atc-fib-fm350_gl atc-fib-l8x0_gl"
-        BASE+=" luci-app-3ginfo-lite luci-app-mmconfig"
 
         if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
+            BASE+=" luci-app-3ginfo-lite luci-app-mmconfig"
             BASE+=" luci-app-modemband luci-app-modeminfo"
             BASE+=" luci-app-sms-tool-js luci-app-droidnet luci-app-lite-watchdog"
             BASE+=" modeminfo modeminfo-serial-dell modeminfo-serial-fibocom"
