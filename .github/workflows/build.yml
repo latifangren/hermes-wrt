@@ -107,6 +107,7 @@ jobs:
           DISK_SIZE=${{ inputs.disk_size }}
           ENABLE_TUNNELS=${{ inputs.enable_tunnels }}
           ENABLE_MODEM=${{ inputs.enable_modem }}
+          ENABLE_KIDDIN9_FEED=false
           EOF
 
       - name: Build

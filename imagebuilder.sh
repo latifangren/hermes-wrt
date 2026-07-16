@@ -202,8 +202,10 @@ configure_ib() {
 
     # Add custom repos
     if [[ "$SRC_NAME" == "openwrt" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
-        # Add kiddin9 custom packages feed
-        echo "src/gz kiddin9 https://dl.openwrt.ai/releases/${SRC_BRANCH}/packages/${ARCH_3}/kiddin9" >> repositories.conf
+        # Add kiddin9 custom packages feed if enabled
+        if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]]; then
+            echo "src/gz kiddin9 https://dl.openwrt.ai/releases/${SRC_BRANCH}/packages/${ARCH_3}/kiddin9" >> repositories.conf
+        fi
         # Add common architectures to prevent incompat warning for custom packages like mihombreng
         echo "arch all 1" >> repositories.conf
         echo "arch aarch64_generic 10" >> repositories.conf
@@ -265,7 +267,11 @@ build_package_list() {
     BASE+=" uhttpd uhttpd-mod-ubus px5g-mbedtls"
     [[ "${ENABLE_EXTRAS:-true}" == "true" ]] && \
         BASE+=" btop screen pv httping adb"
-    BASE+=" luci-app-filebrowser"
+
+    # — File Browser (Immortalwrt or Kiddin9 only) —
+    if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
+        BASE+=" luci-app-filebrowser"
+    fi
 
     # — Modem support —
     if [[ "${ENABLE_MODEM:-true}" == "true" ]]; then
@@ -278,11 +284,13 @@ build_package_list() {
         BASE+=" modemmanager modemmanager-rpcd luci-proto-modemmanager libmbim libqmi"
         BASE+=" sms-tool picocom minicom"
         BASE+=" luci-proto-ncm luci-proto-mbim luci-proto-3g luci-proto-xmm"
-        BASE+=" luci-app-3ginfo-lite luci-app-modemband luci-app-modeminfo luci-app-mmconfig"
-        BASE+=" luci-app-sms-tool-js luci-app-droidnet luci-app-lite-watchdog"
-        BASE+=" modeminfo modeminfo-serial-dell modeminfo-serial-fibocom"
-        BASE+=" modeminfo-serial-sierra modeminfo-serial-tw modeminfo-serial-xmm"
-        BASE+=" xmm-modem modemband"
+        if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
+            BASE+=" luci-app-3ginfo-lite luci-app-modemband luci-app-modeminfo luci-app-mmconfig"
+            BASE+=" luci-app-sms-tool-js luci-app-droidnet luci-app-lite-watchdog"
+            BASE+=" modeminfo modeminfo-serial-dell modeminfo-serial-fibocom"
+            BASE+=" modeminfo-serial-sierra modeminfo-serial-tw modeminfo-serial-xmm"
+            BASE+=" xmm-modem modemband"
+        fi
     fi
 
     # — Storage —
@@ -300,10 +308,13 @@ build_package_list() {
     if [[ "${ENABLE_TUNNELS:-true}" == "true" ]]; then
         TUNNEL+=" coreutils-nohup bash dnsmasq-full curl ca-certificates ipset ip-full"
         TUNNEL+=" libcap libcap-bin ruby ruby-yaml kmod-tun kmod-inet-diag unzip kmod-nft-tproxy"
-        TUNNEL+=" luci-compat luci luci-base luci-app-openclash"
-        TUNNEL+=" nikki luci-app-nikki mihombreng luci-app-mihombreng"
-        TUNNEL+=" chinadns-ng resolveip dns2socks dns2tcp ipt2socks microsocks tcping"
-        TUNNEL+=" xray-core xray-plugin luci-app-passwall"
+        TUNNEL+=" dns2tcp microsocks tcping"
+        if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
+            TUNNEL+=" luci-app-openclash"
+            TUNNEL+=" nikki luci-app-nikki mihombreng luci-app-mihombreng"
+            TUNNEL+=" chinadns-ng resolveip dns2socks ipt2socks"
+            TUNNEL+=" xray-core xray-plugin luci-app-passwall"
+        fi
         BASE+=" $TUNNEL"
     fi
 
@@ -311,10 +322,13 @@ build_package_list() {
     if [[ "$OP_VARIANT" == "full" ]]; then
         [[ "${ENABLE_PYTHON:-false}" == "true" ]] && BASE+=" python3 python3-pip"
         [[ "${ENABLE_DOCKER:-false}" == "true" ]] && \
-            BASE+=" docker docker-compose dockerd luci-app-dockerman"
-        [[ "${ENABLE_ADGUARD:-false}" == "true" ]] && \
-            BASE+=" adguardhome luci-app-adguardhome"
-        BASE+=" librespeed-go iperf3-ssl ookla-speedtest"
+            BASE+=" docker docker-compose dockerd"
+        if [[ "${ENABLE_KIDDIN9_FEED:-false}" == "true" ]] || [[ "$SRC_NAME" == "immortalwrt" ]]; then
+            [[ "${ENABLE_DOCKER:-false}" == "true" ]] && BASE+=" luci-app-dockerman"
+            [[ "${ENABLE_ADGUARD:-false}" == "true" ]] && \
+                BASE+=" adguardhome luci-app-adguardhome"
+            BASE+=" librespeed-go iperf3-ssl ookla-speedtest"
+        fi
     fi
 
     # — Source-specific excludes —

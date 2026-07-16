@@ -1,0 +1,17 @@
+#!/bin/sh
+# ── Hermes-WRT First Boot Settings ──
+
+# Set Hostname
+uci set system.@system[0].hostname='HermesWrt'
+
+# Set Timezone to Asia/Jakarta (WIB)
+uci set system.@system[0].timezone='WIB-7'
+uci set system.@system[0].zonename='Asia/Jakarta'
+uci commit system
+
+# Set Google DNS as default DNS Forwarding for dnsmasq
+uci add_list dhcp.@dnsmasq[0].server='8.8.8.8'
+uci add_list dhcp.@dnsmasq[0].server='8.8.4.4'
+uci commit dhcp
+
+exit 0
