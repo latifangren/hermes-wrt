@@ -34,14 +34,22 @@ on:
       device:
         description: 'Device'
         required: true
-        default: 's905x'
+        default: 's905x3-x96max'
         type: choice
         options:
-          - s905x
-          - s905x2
-          - s905x3
-          - s905x4
-          - s912
+          # Amlogic TV Box
+          - s905x-b860h
+          - s905x-hg680p
+          - s905x2-b860hv5
+          - s905x2-hg680-fj
+          - s905x3-hk1
+          - s905x3-x96max
+          - s905x3-x96air
+          - s905x3-h96max
+          - s905x4-generic
+          - s912-generic
+          - s922x-gtking
+          # Allwinner & Rockchip TV Box
           - h5-orangepi-zeroplus2
           - h6-orangepi-3
           - h616-orangepi-zero2
@@ -49,6 +57,7 @@ on:
           - rk3566-orangepi-3b
           - rk3588s-orangepi-5
           - rk3588-orangepi-5plus
+          # Official Devices
           - bcm2710-rpi-3b
           - bcm2711-rpi-4b
           - x86-64

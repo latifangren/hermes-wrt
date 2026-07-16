@@ -81,6 +81,33 @@ pack_tvbox() {
         sudo cp -rf "$boot_src"/* "$stage/mnt_boot/" 2>/dev/null || true
     fi
 
+    # Patch FDT (DTB) dynamically for specific amlogic boards in uEnv.txt & extlinux.conf
+    if [[ "$DEV_FAMILY" == "amlogic" && -f "$stage/mnt_boot/uEnv.txt" ]]; then
+        local dtb_file=""
+        case "$OP_DEVICE" in
+            s905x-b860h)     dtb_file="/dtb/amlogic/meson-gxl-s905x-b860h.dtb" ;;
+            s905x-hg680p)    dtb_file="/dtb/amlogic/meson-gxl-s905x-p212.dtb"  ;;
+            s905x2-b860hv5)  dtb_file="/dtb/amlogic/meson-g12a-b860h-v5.dtb"  ;;
+            s905x2-hg680-fj) dtb_file="/dtb/amlogic/meson-g12a-hg680-fj.dtb" ;;
+            s905x3-hk1)      dtb_file="/dtb/amlogic/meson-sm1-hk1box-vontar-x3.dtb" ;;
+            s905x3-x96max)   dtb_file="/dtb/amlogic/meson-sm1-x96-max-plus.dtb"    ;;
+            s905x3-x96air)   dtb_file="/dtb/amlogic/meson-sm1-x96-air.dtb"         ;;
+            s905x3-h96max)   dtb_file="/dtb/amlogic/meson-sm1-h96-max-x3.dtb"      ;;
+            s905x4-generic)  dtb_file="/dtb/amlogic/meson-s4-x96-x4.dtb"          ;;
+            s912-generic)    dtb_file="/dtb/amlogic/meson-gxm-nexbox-a1.dtb"       ;;
+            s922x-gtking)    dtb_file="/dtb/amlogic/meson-g12b-gtking-pro.dtb"    ;;
+            *)
+                # Default fallback jika tidak ada tipe spesifik
+                dtb_file="/dtb/amlogic/meson-g12b-gtking-pro.dtb"
+                ;;
+        esac
+        log "  Configuring DTB for $OP_DEVICE: $dtb_file"
+        sudo sed -i "s|^FDT=.*|FDT=$dtb_file|" "$stage/mnt_boot/uEnv.txt"
+        if [[ -f "$stage/mnt_boot/extlinux/extlinux.conf.bak" ]]; then
+            sudo sed -i "s|meson-g12b-gtking-pro.dtb|$(basename "$dtb_file")|g" "$stage/mnt_boot/extlinux/extlinux.conf.bak"
+        fi
+    fi
+
     # 5b. Kernel boot/? dtb/ → BOOT partition
     if [[ -d "$stage/kernel/boot" ]]; then
         log "  Copying kernel boot files"
