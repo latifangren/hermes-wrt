@@ -509,6 +509,8 @@ build_tvbox() {
 # MAIN
 # ═══════════════════════════════════════════════════════
 main() {
+    detect_target "$OP_DEVICE"
+
     # If device is official, ignore selected kernel inputs
     if [[ "$TVBOX" == "false" ]]; then
         KERNEL_SOURCE="official"
@@ -530,8 +532,6 @@ main() {
     elif [[ "$SRC_MAJOR" -lt 24 ]]; then
         echo "  ⚠️  Older releases may have limited package availability"
     fi
-
-    detect_target "$OP_DEVICE"
 
     if [[ "$TVBOX" == true ]]; then
         echo "  → TV Box family: ${DEV_FAMILY}"
