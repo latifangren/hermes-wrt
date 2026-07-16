@@ -83,4 +83,12 @@ Gunakan berkas `hermes.conf` untuk mematikan atau menghidupkan fitur bawaan:
 ## Lisensi & Kredit
 
 - **Hermes-WRT** dirilis di bawah lisensi MIT.
-- Terima kasih untuk kontributor open-source komunitas OpenWrt, kernel ophub, kernel armarchindo, dan pembuat package terkait.
+- Proyek ini berdiri di atas karya luar biasa para kontributor komunitas OpenWrt dan STB Indonesia. Terima kasih dan apresiasi sebesar-besarnya kepada:
+  - **OpenWrt & ImmortalWrt** — Piringan basis sistem router.
+  - **Ophub** ([github.com/ophub/amlogic-s9xxx-openwrt](https://github.com/ophub/amlogic-s9xxx-openwrt)) — Penemu dan pembangun integrasi kernel Amlogic TV Box.
+  - **Armarchindo / DBAI** ([github.com/armarchindo/kernel](https://github.com/armarchindo/kernel)) — Penyedia kernel DBAI yang dioptimalkan untuk STB Indonesia.
+  - **Sib0ndt** ([github.com/sib0ndt/linux](https://github.com/sib0ndt/linux)) — Custom kernel Amlogic TV Box.
+  - **syntax-xidz** ([github.com/syntax-xidz/ULO-Builder](https://github.com/syntax-xidz/ULO-Builder)) — Repack & ULO-Builder utility references.
+  - **RizkiKotet-Dev & frizkyiman** — Pembangun repositori referensi CI/CD builder untuk komunitas Indonesia.
+  - **Kiddin9** — Penyedia feed package mirror OpenWrt lengkap.
+  - Serta seluruh pembuat package lokal (RakitanManager, Nokia Status, MacTodong, dll) yang biner kustomnya terintegrasi dalam proyek ini.
