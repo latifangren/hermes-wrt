@@ -105,6 +105,14 @@ on:
         options:
           - "Plus [ Support 23.05|24.10 ]"
           - "Basic [ Support 23.05|24.10|25.12 ]"
+      upload_release:
+        description: 'Upload firmware to GitHub Release'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
       disk_size:
         description: 'Total disk image size'
         required: true
@@ -685,6 +693,17 @@ jobs:
           name: build-logs-${{ matrix.target }}-${{ env.VARIANT_VAL }}
           path: build_*.log
           retention-days: 3
+
+      - name: Upload Firmware to GitHub Release
+        uses: softprops/action-gh-release@v3
+        if: success() && inputs.upload_release == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: hermes-wrt-${{ env.source_name }}-${{ env.source_version }}-${{ github.run_number }}
+          name: hermes-wrt-${{ env.source_name }}-${{ env.source_version }}-${{ github.run_number }}
+          files: out/*
+          prerelease: ${{ github.ref_name == 'dev' }}
 
       - name: Clean Simulated Disk
         if: always() && contains(inputs.target, 'all-devices')
