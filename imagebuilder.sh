@@ -134,6 +134,24 @@ detect_target() {
         TARGET_PROFILE="generic";  TARGET_SYS="x86/64"
         TARGET_NAME="x86-64";      ARCH_3="x86_64"
 
+    # Official: Raspberry Pi 1 (ARMv6)
+    elif [[ "$dev" =~ ^bcm2708-|^rpi-1$ ]]; then
+        DEV_FAMILY="bcm2708";      TVBOX=false
+        TARGET_PROFILE="rpi";      TARGET_SYS="brcm2708/bcm2708"
+        TARGET_NAME="brcm2708-bcm2708"; ARCH_3="arm_arm1176jzf-s_vfp"
+
+    # Official: Raspberry Pi 2 (ARMv7)
+    elif [[ "$dev" =~ ^bcm2709-|^rpi-2$ ]]; then
+        DEV_FAMILY="bcm2709";      TVBOX=false
+        TARGET_PROFILE="rpi-2";    TARGET_SYS="brcm2708/bcm2709"
+        TARGET_NAME="brcm2708-bcm2709"; ARCH_3="arm_cortex-a7_neon-vfpv4"
+
+    # Official: x86-generic (32-bit)
+    elif [[ "$dev" =~ ^x86-generic$ ]]; then
+        DEV_FAMILY="x86";          TVBOX=false
+        TARGET_PROFILE="generic";  TARGET_SYS="x86/generic"
+        TARGET_NAME="x86-generic"; ARCH_3="i386_pentium4"
+
     # Official: Router/embedded (tentang)
     elif [[ "$dev" =~ ^samsung|^qemu|^virt|^generic- ]]; then
         DEV_FAMILY="armsr";        TVBOX=false

@@ -20,24 +20,51 @@ LOOP_DEV=""
 
 pack_tvbox() {
     step "Packing TV box image"
-    local disk_img="${OUT_TVBOX}/hermes-wrt-${OP_DEVICE}.img"
+
+    local original_kernel_version="${KERNEL_VERSION:-auto}"
+    original_kernel_version="${original_kernel_version,,}"
+
+    IFS='_' read -r -a kernel_versions <<< "$original_kernel_version"
+    if [[ ${#kernel_versions[@]} -gt 1 ]]; then
+        log "Multi-kernel build requested: ${original_kernel_version}"
+    fi
+
+    local kernel_version
+    for kernel_version in "${kernel_versions[@]}"; do
+        [[ -z "$kernel_version" ]] && continue
+        KERNEL_VERSION="$kernel_version"
+        pack_tvbox_single "$kernel_version"
+    done
+
+    KERNEL_VERSION="$original_kernel_version"
+}
+
+pack_tvbox_single() {
+    local kernel_version="${1:-${KERNEL_VERSION:-auto}}"
+    kernel_version="${kernel_version,,}"
+    KERNEL_VERSION="$kernel_version"
+
+    local kernel_name
+    kernel_name=$(echo "$kernel_version" | tr '/[:space:]' '--' | tr -cd '[:alnum:]._-')
+    [[ -z "$kernel_name" ]] && kernel_name="auto"
+
+    local disk_img="${OUT_TVBOX}/hermes-wrt-${OP_DEVICE}-${kernel_name}.img"
     local rootfs_tgz=$(ls "${IB_PATH}/out_rootfs/"*rootfs.tar.gz 2>/dev/null | head -1)
 
     [[ -z "$rootfs_tgz" ]] && { warn "No rootfs.tar.gz found. Build ImageBuilder first."; return 1; }
-    log "Rootfs: $(basename $rootfs_tgz)"
+    log "Rootfs: $(basename "$rootfs_tgz")"
+    log "Kernel selector: ${kernel_version}"
 
-    local stage="${MAKE_PATH}/.pack_staging"
+    local stage="${MAKE_PATH}/.pack_staging_${kernel_name}"
     rm -rf "$stage"
     mkdir -p "$stage/rootfs" "$stage/kernel" "$stage/boot"
-
-    # Convert kernel version to lowercase for casing check integrity
-    [[ -n "${KERNEL_VERSION:-}" ]] && KERNEL_VERSION="${KERNEL_VERSION,,}"
 
     cleanup() {
         if [[ -n "${LOOP_DEV:-}" ]]; then
             log "Cleaning up mounts and loop devices..."
             sudo umount "${LOOP_DEV}p1" "${LOOP_DEV}p2" 2>/dev/null || true
             sudo losetup -d "$LOOP_DEV" 2>/dev/null || true
+            LOOP_DEV=""
         fi
         if [[ -n "${stage:-}" ]]; then
             rm -rf "$stage" 2>/dev/null || true
@@ -52,7 +79,7 @@ pack_tvbox() {
     # ── Step 2: Create raw disk ──
     step "[2/6] Creating raw disk image (${DISK_SIZE:-1G})..."
     mkdir -p "$OUT_TVBOX"
-    rm -f "$disk_img"
+    rm -f "$disk_img" "${disk_img}.gz"
     fallocate -l "${DISK_SIZE:-1G}" "$disk_img"
 
     # ── Step 3: Partition ──
@@ -144,7 +171,7 @@ pack_tvbox() {
 
     # 5e. files/ overlay
     local files_src="${MAKE_PATH}/rootfs"
-    if [[ -d "$files_src" && -n "$(ls -A $files_src)" ]]; then
+    if [[ -d "$files_src" && -n "$(ls -A "$files_src")" ]]; then
         log "  Applying files overlay (rootfs/)"
         sudo cp -rf "$files_src"/* "$stage/mnt_rootfs/" 2>/dev/null || true
     fi
@@ -163,8 +190,11 @@ pack_tvbox() {
 
     local out_file="${disk_img}.gz"
     [[ -f "$out_file" ]] || { warn "Failed to create .img.gz"; return 1; }
-    ok "Image ready: $(basename $out_file)"
+    ok "Image ready: $(basename "$out_file")"
     echo "$out_file"
+
+    rm -rf "$stage" 2>/dev/null || true
+    trap - EXIT
 }
 
 # ════════════════════════════════════════════════════════════════
@@ -193,17 +223,29 @@ download_kernel() {
 download_kernel_ophub() {
     local out="$1" ver="${2:-auto}"
     step "  Kernel from ophub (${ver})"
-    if [[ "${ver,,}" == "auto" ]]; then
-        # Fetch release tags, fallback to 6.12.95 if rate-limited or fails
-        local tags
+
+    local tags=""
+    if [[ "${ver,,}" == "auto" || "${ver,,}" =~ ^[0-9]+\.[0-9]+\.y$ ]]; then
         tags=$(curl -sL "https://api.github.com/repos/ophub/kernel/releases/tags/kernel_stable" 2>/dev/null \
             | grep -oE '"name": "[^"]+"' || true)
-        
+    fi
+
+    if [[ "${ver,,}" == "auto" ]]; then
+        # Fetch release tags, fallback to 6.12.95 if rate-limited or fails
         if [[ -n "$tags" ]]; then
             ver=$(echo "$tags" | cut -d'"' -f4 | grep -oE '6\.[0-9]+\.[0-9]+' | sort -V | tail -1 || true)
         fi
         [[ -z "$ver" ]] && ver="6.12.95"
         log "    Auto-selected: ${ver}"
+    elif [[ "${ver,,}" =~ ^([0-9]+\.[0-9]+)\.y$ ]]; then
+        local branch="${BASH_REMATCH[1]}"
+        local resolved=""
+        if [[ -n "$tags" ]]; then
+            resolved=$(echo "$tags" | cut -d'"' -f4 | grep -oE "${branch//./\\.}\.[0-9]+" | sort -V | tail -1 || true)
+        fi
+        [[ -z "$resolved" ]] && fail "Unable to resolve ophub kernel selector: ${ver}"
+        log "    Resolved ${ver} -> ${resolved}"
+        ver="$resolved"
     fi
 
     # Downloader logic:

@@ -165,6 +165,9 @@ on:
         default: ''
         type: string
 
+permissions:
+  contents: write
+
 env:
   TZ: Asia/Jakarta
 
@@ -469,24 +472,31 @@ jobs:
               ;;
             "OrangePi 5 Plus")
               DEVICE_CLEAN="orangepi-5-plus"
+              KERNEL_VER="5.10.y_5.15.y_6.1.y_6.6.y"
               ;;
             "OrangePi 5B")
               DEVICE_CLEAN="orangepi-5b"
+              KERNEL_VER="5.10.y_5.15.y_6.1.y_6.6.y"
               ;;
             "H96-Max-M2")
               DEVICE_CLEAN="h96-max-m2"
+              KERNEL_VER="5.10.y_5.15.y_6.1.y_6.6.y"
               ;;
             "NanoPi-M5")
               DEVICE_CLEAN="nanopi-m5"
+              KERNEL_VER="5.10.y_5.15.y_6.1.y_6.6.y"
               ;;
             "Firefly-Rk3328")
               DEVICE_CLEAN="renegade-rk3328"
+              KERNEL_VER="5.10.y_5.15.y_6.1.y"
               ;;
             "Rk3318-BOX")
               DEVICE_CLEAN="rk3318-box"
+              KERNEL_VER="5.10.y_5.15.y_6.1.y"
               ;;
             "Rk3399 King3399")
               DEVICE_CLEAN="king3399"
+              KERNEL_VER="5.10.y_5.15.y_6.1.y"
               ;;
             "Amlogic B860Hv5 v1")
               DEVICE_CLEAN="s905x2-b860hv5"
@@ -540,90 +550,119 @@ jobs:
               ;;
             "Amlogic s905 MXQ-Pro+")
               DEVICE_CLEAN="s905-mxqpro-plus"
+              KERNEL_VER="5.4.y_5.15.y_6.1.y"
               ;;
             "Amlogic s905 Beelink-Mini")
               DEVICE_CLEAN="s905-beelink-mini"
+              KERNEL_VER="5.4.y_5.15.y_6.1.y"
               ;;
             "Amlogic s905lb Q96-Mini")
               DEVICE_CLEAN="s905lb-q96-mini"
+              KERNEL_VER="5.4.y_5.15.y_6.1.y"
               ;;
             "Amlogic s905w TX3-Mini")
               DEVICE_CLEAN="s905w"
+              KERNEL_VER="5.4.y_5.15.y_6.1.y"
               ;;
             "Amlogic s905w X96-Mini")
               DEVICE_CLEAN="s905w-x96-mini"
+              KERNEL_VER="5.4.y_5.15.y_6.1.y"
               ;;
             "Amlogic s905w X96W")
               DEVICE_CLEAN="s905w-x96w"
+              KERNEL_VER="5.4.y_5.15.y_6.1.y"
               ;;
             "Amlogic s905x B860H")
               DEVICE_CLEAN="s905x-b860h"
+              KERNEL_VER="5.4.y_5.15.y_6.1.y"
               ;;
             "Amlogic s905x B860H MODSDCARD")
               DEVICE_CLEAN="s905x-b860h"
+              KERNEL_VER="5.4.y_5.15.y_6.1.y"
               ;;
             "Amlogic s905x HG680P")
               DEVICE_CLEAN="s905x-hg680p"
+              KERNEL_VER="5.4.y_5.15.y_6.1.y"
               ;;
             "Amlogic s905x HG680P MODSDCARD")
               DEVICE_CLEAN="s905x-hg680p"
+              KERNEL_VER="5.4.y_5.15.y_6.1.y"
               ;;
             "Amlogic s905x2 B860Hv5")
               DEVICE_CLEAN="s905x2-b860h-v5"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x2 B860Hv5-x")
               DEVICE_CLEAN="s905x2-b860h-v5"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x2 HG680-FJ")
               DEVICE_CLEAN="s905x2-hg680-fj"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x2 HG680-FJ-x")
               DEVICE_CLEAN="s905x2-hg680-fj"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x2 X96Max-v2Gb")
               DEVICE_CLEAN="s905x2-x96max-2g"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x2 X96Max-v4Gb")
               DEVICE_CLEAN="s905x2"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x3 HK1-Vontar-X3")
               DEVICE_CLEAN="s905x3-hk1"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x3 X96Air_100mb")
               DEVICE_CLEAN="s905x3-x96air"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x3 X96Air_1Gb")
               DEVICE_CLEAN="s905x3-x96air-gb"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x3 X96Max+_100Mb")
               DEVICE_CLEAN="s905x3"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x3 X96Max+_1Gb")
               DEVICE_CLEAN="s905x3-x96max"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x3 H96-Max-X3")
               DEVICE_CLEAN="s905x3-h96max"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x4 Advan-At01_Ax810")
               DEVICE_CLEAN="s905x4-advan"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s912 Nexbox-A1-A95X")
               DEVICE_CLEAN="s912-nexbox-a1"
+              KERNEL_VER="5.4.y_5.15.y_6.1.y"
               ;;
             "Amlogic s912 Nexbox-A95X-A2")
               DEVICE_CLEAN="s912-nexbox-a2"
+              KERNEL_VER="5.4.y_5.15.y_6.1.y"
               ;;
             "Amlogic s922x GT-King-Pro")
               DEVICE_CLEAN="s922x"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Tanix-TX6")
               DEVICE_CLEAN="tanix-tx6"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Rk3318-BOX")
               DEVICE_CLEAN="rk3318-box"
+              KERNEL_VER="5.10.y_5.15.y_6.1.y"
               ;;
             "Rk3399 King3399")
               DEVICE_CLEAN="king3399"
+              KERNEL_VER="5.10.y_5.15.y_6.1.y"
               ;;
           esac
 
@@ -694,15 +733,37 @@ jobs:
           path: build_*.log
           retention-days: 3
 
+      - name: Check Release Files
+        id: check-release-files
+        if: success() && inputs.upload_release == 'true'
+        run: |
+          if find out/ -type f \( -name '*.img.gz' -o -name '*.tar.gz' -o -name '*.img' \) 2>/dev/null | head -1 | grep -q .; then
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload Firmware to GitHub Release
         uses: softprops/action-gh-release@v3
-        if: success() && inputs.upload_release == 'true'
+        if: success() && inputs.upload_release == 'true' && steps.check-release-files.outputs.has_files == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: hermes-wrt-${{ env.source_name }}-${{ env.source_version }}-${{ github.run_number }}
           name: hermes-wrt-${{ env.source_name }}-${{ env.source_version }}-${{ github.run_number }}
-          files: out/*
+          body: |
+            **Hermes-WRT Build ${{ github.run_number }}**
+            - Source: `${{ env.source_name }}` `${{ env.source_version }}`
+            - Target: `${{ matrix.target }}`
+            - Variant: `${{ env.VARIANT_VAL }}`
+          files: |
+            out/**/*.img.gz
+            out/**/*.tar.gz
+            out/*.img.gz
+            out/*.tar.gz
+            out/**/*.img
+            out/*.img
+          fail_on_unmatched_files: false
           prerelease: ${{ github.ref_name == 'dev' }}
 
       - name: Clean Simulated Disk
