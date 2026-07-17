@@ -95,8 +95,11 @@ fi
 detect_target() {
     local dev="$1"
 
+    # If variables are already provided by hermes.conf/environment, respect them:
+    if [[ -n "${TARGET_PROFILE:-}" && -n "${TARGET_SYS:-}" && -n "${TARGET_NAME:-}" ]]; then
+        log "Using pre-configured target: PROFILE=${TARGET_PROFILE}, SYS=${TARGET_SYS}, NAME=${TARGET_NAME}"
     # TV Box: Amlogic
-    if [[ "$dev" =~ ^s905|^s912|^s922|^a311d ]]; then
+    elif [[ "$dev" =~ ^s905|^s912|^s922|^a311d ]]; then
         DEV_FAMILY="amlogic";      TVBOX=true
         TARGET_PROFILE="generic";  TARGET_SYS="armsr/armv8"
         TARGET_NAME="armsr-armv8"; ARCH_3="aarch64_generic"
@@ -107,8 +110,8 @@ detect_target() {
         TARGET_PROFILE="generic";  TARGET_SYS="armsr/armv8"
         TARGET_NAME="armsr-armv8"; ARCH_3="aarch64_generic"
 
-    # TV Box: Rockchip
-    elif [[ "$dev" =~ ^rk ]]; then
+    # TV Box: Rockchip / other TV Box
+    elif [[ "$dev" =~ ^rk|^renegade-|^tanix-|^king3399|^orangepi-5-plus|^orangepi-5b|^h96-max-m2|^nanopi-m5 ]]; then
         DEV_FAMILY="rockchip";     TVBOX=true
         TARGET_PROFILE="generic";  TARGET_SYS="armsr/armv8"
         TARGET_NAME="armsr-armv8"; ARCH_3="aarch64_generic"
@@ -143,8 +146,11 @@ detect_target() {
 
     # Set arch family
     case "$ARCH_3" in
-        aarch64*)  ARCH_1="arm64";  ARCH_2="aarch64" ;;
-        x86_64)    ARCH_1="amd64";  ARCH_2="x86_64"  ;;
+        aarch64*)         ARCH_1="arm64";  ARCH_2="aarch64" ;;
+        x86_64)           ARCH_1="amd64";  ARCH_2="x86_64"  ;;
+        i386*|386*)       ARCH_1="386";    ARCH_2="i386"    ;;
+        armv6*|arm_arm*)  ARCH_1="armv6";  ARCH_2="arm"     ;;
+        armv7*|arm_co*)   ARCH_1="armv7";  ARCH_2="arm"     ;;
     esac
 }
 

@@ -7,73 +7,96 @@ concurrency:
 on:
   workflow_dispatch:
     inputs:
-      source_name:
-        description: 'Tipe Source (OpenWrt / ImmortalWrt)'
+      release_branch:
+        description: "Select the release branch"
         required: true
-        default: 'openwrt'
+        default: "openwrt:24.10.7"
         type: choice
         options:
-          - openwrt
-          - immortalwrt
-      source_version:
-        description: 'Versi (Pilihan menu)'
+          - openwrt:25.12.5
+          - openwrt:24.10.7
+          - openwrt:23.05.6
+          - immortalwrt:24.10.6
+          - immortalwrt:23.05.7
+      target:
+        description: "Select device board"
         required: true
-        default: 'latest'
+        default: "all-devices-official"
         type: choice
         options:
-          - latest
-          - 25.12.5
-          - 24.10.0
-          - 23.05.5
-          - custom (Tulis manual di bawah)
-      custom_version:
-        description: 'Versi manual (Hanya jika pilih "custom" di atas)'
-        required: false
-        default: ''
-        type: string
-      device:
-        description: 'Device'
-        required: true
-        default: 's905x3-x96max'
-        type: choice
-        options:
-          # Amlogic TV Box
-          - s905x-b860h
-          - s905x-hg680p
-          - s905x2-b860hv5-v1
-          - s905x2-b860hv5-v2
-          - s905x2-b860hv5-v3
-          - s905x2-hg680-fj-v1
-          - s905x2-hg680-fj-v2
-          - s905x2-hg680-fj-v3
-          - s905x3-hk1
-          - s905x3-x96max
-          - s905x3-x96air
-          - s905x3-h96max
-          - s905x4-advan
-          - s905x4-v1
-          - s905x4-v2
-          - s905x4-v3
-          - s905x4-v4
-          - s905x4-generic
-          - s905w-x96mini
-          - s905w-tx3mini
-          - s905w-x96w
-          - s905lb-q96mini
-          - s912-generic
-          - s922x-gtking
-          # Allwinner & Rockchip TV Box
-          - h5-orangepi-zeroplus2
-          - h6-orangepi-3
-          - h616-orangepi-zero2
-          - h618-orangepi-zero3
-          - rk3566-orangepi-3b
-          - rk3588s-orangepi-5
-          - rk3588-orangepi-5plus
-          # Official Devices
-          - bcm2710-rpi-3b
-          - bcm2711-rpi-4b
-          - x86-64
+          - all-devices-official
+          - opt-devices-official
+          - all-devices-ulo
+          - all-devices-ophub
+          - opt-devices-ophub
+          - rk-devices-ophub
+          - Nanopi-r2c
+          - Nanopi-r2c Plus
+          - Nanopi-r2s
+          - Nanopi-r3s
+          - Nanopi-r4s
+          - Nanopi-r5s
+          - Orangepi Pc 2
+          - Orangepi R1 Plus
+          - Orangepi R1 Plus LTS
+          - Raspberry Pi 1B
+          - Raspberry Pi 2B
+          - Raspberry Pi 3B
+          - Raspberry Pi 4B
+          - Raspberry Pi 5B
+          - X86-64
+          - X86-Generic
+          - Allwinner H5 Orange Pi Zero Plus
+          - Allwinner H5 Orange Pi Zero Plus2
+          - Allwinner H6 Orange Pi 3
+          - Allwinner H6 Orange Pi 3 LTS
+          - Allwinner H616 Orange Pi Zero2
+          - Allwinner H618 Orange Pi Zero3
+          - Orange Pi 3B
+          - Amlogic B860Hv5 v1
+          - Amlogic B860Hv5 v2
+          - Amlogic B860Hv5 v3
+          - Amlogic HG680-FJ v1
+          - Amlogic HG680-FJ v2
+          - Amlogic HG680-FJ v3
+          - Amlogic s905x4 v1
+          - Amlogic s905x4 v2
+          - Amlogic s905x4 v3
+          - Amlogic s905x4 v4
+          - Amlogic s905 MXQ-Pro+
+          - Amlogic s905 Beelink-Mini
+          - Amlogic s905lb Q96-Mini
+          - Amlogic s905w TX3-Mini
+          - Amlogic s905w X96-Mini
+          - Amlogic s905w X96W
+          - Amlogic s905x B860H
+          - Amlogic s905x B860H MODSDCARD
+          - Amlogic s905x HG680P
+          - Amlogic s905x HG680P MODSDCARD
+          - Amlogic s905x2 B860Hv5
+          - Amlogic s905x2 B860Hv5-x
+          - Amlogic s905x2 HG680-FJ
+          - Amlogic s905x2 HG680-FJ-x
+          - Amlogic s905x2 X96Max-v2Gb
+          - Amlogic s905x2 X96Max-v4Gb
+          - Amlogic s905x3 HK1-Vontar-X3
+          - Amlogic s905x3 X96Air_100mb
+          - Amlogic s905x3 X96Air_1Gb
+          - Amlogic s905x3 X96Max+_100Mb
+          - Amlogic s905x3 X96Max+_1Gb
+          - Amlogic s905x3 H96-Max-X3
+          - Amlogic s905x4 Advan-At01_Ax810
+          - Amlogic s912 Nexbox-A1-A95X
+          - Amlogic s912 Nexbox-A95X-A2
+          - Amlogic s922x GT-King-Pro
+          - Tanix-TX6
+          - Rk3318-BOX
+          - Firefly-Rk3328
+          - Rk3399 King3399
+          - OrangePi 5 Plus
+          - OrangePi 5B
+          - H96-Max-M2
+          - NanoPi-M5
       variant:
         description: 'Firmware variant'
         required: true
@@ -153,8 +176,58 @@ env:
   TZ: Asia/Jakarta
 
 jobs:
+  prebuild:
+    runs-on: ubuntu-latest
+    outputs:
+      target: ${{ steps.set-matrix.outputs.target }}
+      source_name: ${{ steps.setupenv.outputs.source_name }}
+      source_version: ${{ steps.setupenv.outputs.source_version }}
+    steps:
+      - name: Set Matrix Target JSON
+        id: set-matrix
+        run: |
+          ALL_OFFICIAL_JSON='{"target": ["Nanopi-r2c", "Nanopi-r2c Plus", "Nanopi-r2s", "Nanopi-r3s", "Nanopi-r4s", "Nanopi-r5s", "Orangepi Pc 2", "Orangepi R1 Plus", "Orangepi R1 Plus LTS", "Raspberry Pi 2B", "Raspberry Pi 3B", "Raspberry Pi 4B", "X86-64"]}'
+          OPT_OFFICIAL_JSON='{"target": ["Raspberry Pi 1B", "Raspberry Pi 5B", "X86-Generic"]}'
+          ALL_ULO_JSON='{"target": ["Allwinner H5 Orange Pi Zero Plus", "Allwinner H5 Orange Pi Zero Plus2", "Allwinner H6 Orange Pi 3", "Allwinner H6 Orange Pi 3 LTS", "Allwinner H616 Orange Pi Zero2", "Allwinner H618 Orange Pi Zero3", "Orange Pi 3B", "Amlogic B860Hv5 v1", "Amlogic B860Hv5 v2", "Amlogic B860Hv5 v3", "Amlogic HG680-FJ v1", "Amlogic HG680-FJ v2", "Amlogic HG680-FJ v3", "Amlogic s905x4 v1", "Amlogic s905x4 v2", "Amlogic s905x4 v3", "Amlogic s905x4 v4"]}'
+          ALL_OPHUB_JSON='{"target": ["Amlogic s905 MXQ-Pro+", "Amlogic s905 Beelink-Mini", "Amlogic s905lb Q96-Mini", "Amlogic s905w TX3-Mini", "Amlogic s905w X96-Mini", "Amlogic s905w X96W", "Amlogic s905x B860H", "Amlogic s905x B860H MODSDCARD", "Amlogic s905x HG680P", "Amlogic s905x HG680P MODSDCARD", "Amlogic s905x2 B860Hv5", "Amlogic s905x2 B860Hv5-x", "Amlogic s905x2 HG680-FJ", "Amlogic s905x2 HG680-FJ-x", "Amlogic s905x2 X96Max-v2Gb", "Amlogic s905x2 X96Max-v4Gb", "Amlogic s905x3 HK1-Vontar-X3", "Amlogic s905x3 X96Air_100mb", "Amlogic s905x3 X96Air_1Gb", "Amlogic s905x3 X96Max+_100Mb", "Amlogic s905x3 X96Max+_1Gb", "Amlogic s905x3 H96-Max-X3", "Amlogic s905x4 Advan-At01_Ax810", "Amlogic s912 Nexbox-A1-A95X", "Amlogic s912 Nexbox-A95X-A2", "Amlogic s922x GT-King-Pro", "Tanix-TX6", "Rk3318-BOX", "Rk3399 King3399"]}'
+          OPT_OPHUB_JSON='{"target": ["Amlogic s905x B860H", "Amlogic s905x B860H MODSDCARD", "Amlogic s905x HG680P", "Amlogic s905x HG680P MODSDCARD"]}'
+          RK_OPHUB_JSON='{"target": ["OrangePi 5 Plus", "OrangePi 5B", "H96-Max-M2", "NanoPi-M5", "Firefly-Rk3328"]}'
+
+          if [ "${{ inputs.target }}" == "all-devices-official" ]; then
+            echo "target=$(echo "$ALL_OFFICIAL_JSON" | jq -c '.target')" >> "$GITHUB_OUTPUT"
+          elif [ "${{ inputs.target }}" == "opt-devices-official" ]; then
+            echo "target=$(echo "$OPT_OFFICIAL_JSON" | jq -c '.target')" >> "$GITHUB_OUTPUT"
+          elif [ "${{ inputs.target }}" == "all-devices-ulo" ]; then
+            echo "target=$(echo "$ALL_ULO_JSON" | jq -c '.target')" >> "$GITHUB_OUTPUT"
+          elif [ "${{ inputs.target }}" == "all-devices-ophub" ]; then
+            echo "target=$(echo "$ALL_OPHUB_JSON" | jq -c '.target')" >> "$GITHUB_OUTPUT"
+          elif [ "${{ inputs.target }}" == "opt-devices-ophub" ]; then
+            echo "target=$(echo "$OPT_OPHUB_JSON" | jq -c '.target')" >> "$GITHUB_OUTPUT"
+          elif [ "${{ inputs.target }}" == "rk-devices-ophub" ]; then
+            echo "target=$(echo "$RK_OPHUB_JSON" | jq -c '.target')" >> "$GITHUB_OUTPUT"
+          else
+            echo "target=$(jq -nc --arg d "${{ inputs.target }}" '[$d]')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Global Environment
+        id: setupenv
+        run: |
+          RELEASE_BRANCH="${{ inputs.release_branch }}"
+          BASE="${RELEASE_BRANCH%:*}"
+          BRANCH="${RELEASE_BRANCH#*:}"
+          echo "source_name=$BASE" >> "$GITHUB_OUTPUT"
+          echo "source_version=$BRANCH" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: prebuild
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.prebuild.outputs.target) }}
+    env:
+      source_name: ${{ needs.prebuild.outputs.source_name }}
+      source_version: ${{ needs.prebuild.outputs.source_version }}
     steps:
       - name: Cleanup & Install Deps
         run: |
@@ -172,9 +245,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: imagebuilder/dl
-          key: ${{ runner.os }}-ib-dl-${{ inputs.source_name }}-${{ inputs.source_version }}-${{ inputs.device }}
+          key: ${{ runner.os }}-ib-dl-${{ needs.prebuild.outputs.source_name }}-${{ needs.prebuild.outputs.source_version }}-${{ matrix.target }}
           restore-keys: |
-            ${{ runner.os }}-ib-dl-${{ inputs.source_name }}-${{ inputs.source_version }}-
+            ${{ runner.os }}-ib-dl-${{ needs.prebuild.outputs.source_name }}-${{ needs.prebuild.outputs.source_version }}-
             ${{ runner.os }}-ib-dl-
 
       - name: Syntax Lint
@@ -183,29 +256,384 @@ jobs:
           bash -n scripts/PACKER.sh
           bash -n scripts/INCLUDE.sh
 
+      - name: Expand Virtual Disk
+        run: |
+          if [[ "${{ inputs.target }}" == *"all-devices"* ]]; then
+            mnt_size=$(expr $(df -h /mnt | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 1)
+            root_size=$(expr $(df -h / | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 4)
+            sudo truncate -s "${mnt_size}"G /mnt/mnt.img
+            sudo truncate -s "${root_size}"G /root.img
+            sudo losetup /dev/loop6 /mnt/mnt.img
+            sudo losetup /dev/loop7 /root.img
+            sudo pvcreate /dev/loop6 /dev/loop7
+            sudo vgcreate github /dev/loop6 /dev/loop7
+            sudo lvcreate -n runner -l 100%FREE github
+            sudo mkfs.xfs -f -i sparse=0 -b size=4096 /dev/github/runner
+            sudo mkdir -p /builder
+            sudo mount /dev/github/runner /builder
+            sudo chown -R runner:runner /builder
+          fi
+
+      - name: Setup builder directory on expanded disk
+        run: |
+          if [ -d "/builder" ]; then
+            sudo mkdir -p /builder/imagebuilder
+            sudo chown -R runner:runner /builder/imagebuilder
+            ln -sf /builder/imagebuilder imagebuilder
+          fi
+
       - name: Inject Config
         run: |
-          # ── Auto-mapping target device version ──
-          DEVICE="${{ inputs.device }}"
+          MATRIXTARGET="${{ matrix.target }}"
           KERNEL_SRC="${{ inputs.kernel_source }}"
           KERNEL_VER="${{ inputs.kernel_version }}"
-          if [[ "$DEVICE" == *"v1" ]]; then
-            KERNEL_SRC="armarchindo"
-            KERNEL_VER="6.1.66-dbai"
-          elif [[ "$DEVICE" == *"v2" ]]; then
-            KERNEL_SRC="armarchindo"
-            KERNEL_VER="6.4.11"
-          elif [[ "$DEVICE" == *"v3" ]]; then
-            KERNEL_SRC="armarchindo"
-            KERNEL_VER="6.2.2"
-          elif [[ "$DEVICE" == *"v4" ]]; then
-            KERNEL_SRC="armarchindo"
-            KERNEL_VER="5.4.265"
-          fi
-          
-          # Dapatkan strip version dari DEVICE name (s905x2-b860hv5-v1 => s905x2-b860hv5)
-          DEVICE_CLEAN=$(echo "$DEVICE" | sed -E 's/-v[1-4]$//')
-          
+          DEVICE_CLEAN=""
+          DEV_FAMILY=""
+          TVBOX="true"
+          TARGET_PROFILE=""
+          TARGET_SYS=""
+          TARGET_NAME=""
+          ARCH_3=""
+          case "$MATRIXTARGET" in
+            "Nanopi-r2c")
+              DEVICE_CLEAN="nanopi-r2c"
+              DEV_FAMILY="nanopi"
+              TVBOX="false"
+              TARGET_PROFILE="friendlyarm_nanopi-r2c"
+              TARGET_SYS="rockchip/armv8"
+              TARGET_NAME="rockchip-armv8"
+              ARCH_3="aarch64_generic"
+              ;;
+            "Nanopi-r2c Plus")
+              DEVICE_CLEAN="nanopi-r2c-plus"
+              DEV_FAMILY="nanopi"
+              TVBOX="false"
+              TARGET_PROFILE="friendlyarm_nanopi-r2c-plus"
+              TARGET_SYS="rockchip/armv8"
+              TARGET_NAME="rockchip-armv8"
+              ARCH_3="aarch64_generic"
+              ;;
+            "Nanopi-r2s")
+              DEVICE_CLEAN="nanopi-r2s"
+              DEV_FAMILY="nanopi"
+              TVBOX="false"
+              TARGET_PROFILE="friendlyarm_nanopi-r2s"
+              TARGET_SYS="rockchip/armv8"
+              TARGET_NAME="rockchip-armv8"
+              ARCH_3="aarch64_generic"
+              ;;
+            "Nanopi-r3s")
+              DEVICE_CLEAN="nanopi-r3s"
+              DEV_FAMILY="nanopi"
+              TVBOX="false"
+              TARGET_PROFILE="friendlyarm_nanopi-r3s"
+              TARGET_SYS="rockchip/armv8"
+              TARGET_NAME="rockchip-armv8"
+              ARCH_3="aarch64_generic"
+              ;;
+            "Nanopi-r4s")
+              DEVICE_CLEAN="nanopi-r4s"
+              DEV_FAMILY="nanopi"
+              TVBOX="false"
+              TARGET_PROFILE="friendlyarm_nanopi-r4s"
+              TARGET_SYS="rockchip/armv8"
+              TARGET_NAME="rockchip-armv8"
+              ARCH_3="aarch64_generic"
+              ;;
+            "Nanopi-r5s")
+              DEVICE_CLEAN="nanopi-r5s"
+              DEV_FAMILY="nanopi"
+              TVBOX="false"
+              TARGET_PROFILE="friendlyarm_nanopi-r5s"
+              TARGET_SYS="rockchip/armv8"
+              TARGET_NAME="rockchip-armv8"
+              ARCH_3="aarch64_generic"
+              ;;
+            "Orangepi Pc 2")
+              DEVICE_CLEAN="orangepi-pc2"
+              DEV_FAMILY="orangepi"
+              TVBOX="false"
+              TARGET_PROFILE="xunlong_orangepi-pc2"
+              TARGET_SYS="sunxi/cortexa53"
+              TARGET_NAME="sunxi-cortexa53"
+              ARCH_3="aarch64_cortex-a53"
+              ;;
+            "Orangepi R1 Plus")
+              DEVICE_CLEAN="orangepi-r1-plus"
+              DEV_FAMILY="orangepi"
+              TVBOX="false"
+              TARGET_PROFILE="xunlong_orangepi-r1-plus"
+              TARGET_SYS="rockchip/armv8"
+              TARGET_NAME="rockchip-armv8"
+              ARCH_3="aarch64_generic"
+              ;;
+            "Orangepi R1 Plus LTS")
+              DEVICE_CLEAN="orangepi-r1-plus-lts"
+              DEV_FAMILY="orangepi"
+              TVBOX="false"
+              TARGET_PROFILE="xunlong_orangepi-r1-plus-lts"
+              TARGET_SYS="rockchip/armv8"
+              TARGET_NAME="rockchip-armv8"
+              ARCH_3="aarch64_generic"
+              ;;
+            "Raspberry Pi 1B")
+              DEVICE_CLEAN="rpi-1b"
+              DEV_FAMILY="rpi"
+              TVBOX="false"
+              TARGET_PROFILE="rpi"
+              TARGET_SYS="bcm27xx/bcm2708"
+              TARGET_NAME="bcm27xx-bcm2708"
+              ARCH_3="arm_arm1176jzf-s_vfp"
+              ;;
+            "Raspberry Pi 2B")
+              DEVICE_CLEAN="rpi-2b"
+              DEV_FAMILY="rpi"
+              TVBOX="false"
+              TARGET_PROFILE="rpi-2"
+              TARGET_SYS="bcm27xx/bcm2709"
+              TARGET_NAME="bcm27xx-bcm2709"
+              ARCH_3="arm_cortex-a7_neon-vfpv4"
+              ;;
+            "Raspberry Pi 3B")
+              DEVICE_CLEAN="bcm2710-rpi-3b"
+              DEV_FAMILY="rpi"
+              TVBOX="false"
+              TARGET_PROFILE="rpi-3"
+              TARGET_SYS="bcm27xx/bcm2710"
+              TARGET_NAME="bcm27xx-bcm2710"
+              ARCH_3="aarch64_cortex-a53"
+              ;;
+            "Raspberry Pi 4B")
+              DEVICE_CLEAN="bcm2711-rpi-4b"
+              DEV_FAMILY="rpi"
+              TVBOX="false"
+              TARGET_PROFILE="rpi-4"
+              TARGET_SYS="bcm27xx/bcm2711"
+              TARGET_NAME="bcm27xx-bcm2711"
+              ARCH_3="aarch64_cortex-a72"
+              ;;
+            "Raspberry Pi 5B")
+              DEVICE_CLEAN="bcm2712-rpi-5b"
+              DEV_FAMILY="rpi"
+              TVBOX="false"
+              TARGET_PROFILE="rpi-5"
+              TARGET_SYS="bcm27xx/bcm2712"
+              TARGET_NAME="bcm27xx-bcm2712"
+              ARCH_3="aarch64_cortex-a76"
+              ;;
+            "X86-64")
+              DEVICE_CLEAN="x86-64"
+              DEV_FAMILY="x86"
+              TVBOX="false"
+              TARGET_PROFILE="generic"
+              TARGET_SYS="x86/64"
+              TARGET_NAME="x86-64"
+              ARCH_3="x86_64"
+              ;;
+            "X86-Generic")
+              DEVICE_CLEAN="x86-generic"
+              DEV_FAMILY="x86"
+              TVBOX="false"
+              TARGET_PROFILE="generic"
+              TARGET_SYS="x86/generic"
+              TARGET_NAME="x86-generic"
+              ARCH_3="i386_pentium4"
+              ;;
+            "Allwinner H5 Orange Pi Zero Plus")
+              DEVICE_CLEAN="h5-orangepi-zeroplus"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.6.6-aw64-dbai"
+              ;;
+            "Allwinner H5 Orange Pi Zero Plus2")
+              DEVICE_CLEAN="h5-orangepi-zeroplus2"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.6.6-aw64-dbai"
+              ;;
+            "Allwinner H6 Orange Pi 3")
+              DEVICE_CLEAN="h6-orangepi-3"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.1.31-aw64-dbai"
+              ;;
+            "Allwinner H6 Orange Pi 3 LTS")
+              DEVICE_CLEAN="h6-orangepi-3lts"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.1.31-aw64-dbai"
+              ;;
+            "Allwinner H616 Orange Pi Zero2")
+              DEVICE_CLEAN="h616-orangepi-zero2"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.1.31-aw64-dbai"
+              ;;
+            "Allwinner H618 Orange Pi Zero3")
+              DEVICE_CLEAN="h618-orangepi-zero3"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.1.31-aw64-dbai"
+              ;;
+            "Orange Pi 3B")
+              DEVICE_CLEAN="rk3566-orangepi-3b"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="5.10.160-rk35v-dbai"
+              ;;
+            "OrangePi 5 Plus")
+              DEVICE_CLEAN="orangepi-5-plus"
+              ;;
+            "OrangePi 5B")
+              DEVICE_CLEAN="orangepi-5b"
+              ;;
+            "H96-Max-M2")
+              DEVICE_CLEAN="h96-max-m2"
+              ;;
+            "NanoPi-M5")
+              DEVICE_CLEAN="nanopi-m5"
+              ;;
+            "Firefly-Rk3328")
+              DEVICE_CLEAN="renegade-rk3328"
+              ;;
+            "Rk3318-BOX")
+              DEVICE_CLEAN="rk3318-box"
+              ;;
+            "Rk3399 King3399")
+              DEVICE_CLEAN="king3399"
+              ;;
+            "Amlogic B860Hv5 v1")
+              DEVICE_CLEAN="s905x2-b860hv5"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.1.66-dbai"
+              ;;
+            "Amlogic B860Hv5 v2")
+              DEVICE_CLEAN="s905x2-b860hv5"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.4.11"
+              ;;
+            "Amlogic B860Hv5 v3")
+              DEVICE_CLEAN="s905x2-b860hv5"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.2.2"
+              ;;
+            "Amlogic HG680-FJ v1")
+              DEVICE_CLEAN="s905x2-hg680-fj"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.1.66-dbai"
+              ;;
+            "Amlogic HG680-FJ v2")
+              DEVICE_CLEAN="s905x2-hg680-fj"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.4.11"
+              ;;
+            "Amlogic HG680-FJ v3")
+              DEVICE_CLEAN="s905x2-hg680-fj"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.2.2"
+              ;;
+            "Amlogic s905x4 v1")
+              DEVICE_CLEAN="s905x4"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.1.66-dbai"
+              ;;
+            "Amlogic s905x4 v2")
+              DEVICE_CLEAN="s905x4"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="5.4.279"
+              ;;
+            "Amlogic s905x4 v3")
+              DEVICE_CLEAN="s905x4"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="6.6.6"
+              ;;
+            "Amlogic s905x4 v4")
+              DEVICE_CLEAN="s905x4"
+              KERNEL_SRC="armarchindo"
+              KERNEL_VER="5.4.265"
+              ;;
+            "Amlogic s905 MXQ-Pro+")
+              DEVICE_CLEAN="s905-mxqpro-plus"
+              ;;
+            "Amlogic s905 Beelink-Mini")
+              DEVICE_CLEAN="s905-beelink-mini"
+              ;;
+            "Amlogic s905lb Q96-Mini")
+              DEVICE_CLEAN="s905lb-q96-mini"
+              ;;
+            "Amlogic s905w TX3-Mini")
+              DEVICE_CLEAN="s905w"
+              ;;
+            "Amlogic s905w X96-Mini")
+              DEVICE_CLEAN="s905w-x96-mini"
+              ;;
+            "Amlogic s905w X96W")
+              DEVICE_CLEAN="s905w-x96w"
+              ;;
+            "Amlogic s905x B860H")
+              DEVICE_CLEAN="s905x-b860h"
+              ;;
+            "Amlogic s905x B860H MODSDCARD")
+              DEVICE_CLEAN="s905x-b860h"
+              ;;
+            "Amlogic s905x HG680P")
+              DEVICE_CLEAN="s905x-hg680p"
+              ;;
+            "Amlogic s905x HG680P MODSDCARD")
+              DEVICE_CLEAN="s905x-hg680p"
+              ;;
+            "Amlogic s905x2 B860Hv5")
+              DEVICE_CLEAN="s905x2-b860h-v5"
+              ;;
+            "Amlogic s905x2 B860Hv5-x")
+              DEVICE_CLEAN="s905x2-b860h-v5"
+              ;;
+            "Amlogic s905x2 HG680-FJ")
+              DEVICE_CLEAN="s905x2-hg680-fj"
+              ;;
+            "Amlogic s905x2 HG680-FJ-x")
+              DEVICE_CLEAN="s905x2-hg680-fj"
+              ;;
+            "Amlogic s905x2 X96Max-v2Gb")
+              DEVICE_CLEAN="s905x2-x96max-2g"
+              ;;
+            "Amlogic s905x2 X96Max-v4Gb")
+              DEVICE_CLEAN="s905x2"
+              ;;
+            "Amlogic s905x3 HK1-Vontar-X3")
+              DEVICE_CLEAN="s905x3-hk1"
+              ;;
+            "Amlogic s905x3 X96Air_100mb")
+              DEVICE_CLEAN="s905x3-x96air"
+              ;;
+            "Amlogic s905x3 X96Air_1Gb")
+              DEVICE_CLEAN="s905x3-x96air-gb"
+              ;;
+            "Amlogic s905x3 X96Max+_100Mb")
+              DEVICE_CLEAN="s905x3"
+              ;;
+            "Amlogic s905x3 X96Max+_1Gb")
+              DEVICE_CLEAN="s905x3-x96max"
+              ;;
+            "Amlogic s905x3 H96-Max-X3")
+              DEVICE_CLEAN="s905x3-h96max"
+              ;;
+            "Amlogic s905x4 Advan-At01_Ax810")
+              DEVICE_CLEAN="s905x4-advan"
+              ;;
+            "Amlogic s912 Nexbox-A1-A95X")
+              DEVICE_CLEAN="s912-nexbox-a1"
+              ;;
+            "Amlogic s912 Nexbox-A95X-A2")
+              DEVICE_CLEAN="s912-nexbox-a2"
+              ;;
+            "Amlogic s922x GT-King-Pro")
+              DEVICE_CLEAN="s922x"
+              ;;
+            "Tanix-TX6")
+              DEVICE_CLEAN="tanix-tx6"
+              ;;
+            "Rk3318-BOX")
+              DEVICE_CLEAN="rk3318-box"
+              ;;
+            "Rk3399 King3399")
+              DEVICE_CLEAN="king3399"
+              ;;
+          esac
+
           cat >> hermes.conf << EOF
           KERNEL_SOURCE=${KERNEL_SRC}
           KERNEL_VERSION=${KERNEL_VER}
@@ -218,22 +646,25 @@ jobs:
           TELEGRAM_BOT_TOKEN="${{ inputs.telegram_bot_token }}"
           TELEGRAM_CHAT_ID="${{ inputs.telegram_chat_id }}"
           EOF
-          
+
+          if [ "$TVBOX" == "false" ]; then
+            cat >> hermes.conf << EOF
+          DEV_FAMILY=${DEV_FAMILY}
+          TVBOX=false
+          TARGET_PROFILE=${TARGET_PROFILE}
+          TARGET_SYS=${TARGET_SYS}
+          TARGET_NAME=${TARGET_NAME}
+          ARCH_3=${ARCH_3}
+          EOF
+          fi
+
           echo "DEVICE_NAME=${DEVICE_CLEAN}" >> $GITHUB_ENV
 
       - name: Build
         id: build
         run: |
-          VERSION="${{ inputs.source_version }}"
-          if [[ "$VERSION" == "custom (Tulis manual di bawah)" ]]; then
-            VERSION="${{ inputs.custom_version }}"
-          fi
-          if [[ -z "$VERSION" ]]; then
-            echo "ERROR: Custom version tidak boleh kosong!"
-            exit 1
-          fi
           chmod +x imagebuilder.sh
-          if sudo ./imagebuilder.sh "${{ inputs.source_name }}:${VERSION}" "${DEVICE_NAME:-${{ inputs.device }}}" "${{ inputs.variant }}"; then
+          if sudo ./imagebuilder.sh "${source_name}:${source_version}" "${DEVICE_NAME}" "${{ inputs.variant }}"; then
             echo "status=success" >> $GITHUB_OUTPUT
           else
             echo "status=failed" >> $GITHUB_OUTPUT
@@ -244,7 +675,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: hermes-wrt-${{ inputs.device }}-${{ inputs.variant }}
+          name: hermes-wrt-${{ matrix.target }}-${{ inputs.variant }}
           path: out/*
           retention-days: 7
 
@@ -252,6 +683,17 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: build-logs-${{ inputs.device }}-${{ inputs.variant }}
+          name: build-logs-${{ matrix.target }}-${{ inputs.variant }}
           path: build_*.log
           retention-days: 3
+
+      - name: Clean Simulated Disk
+        if: always() && contains(inputs.target, 'all-devices')
+        run: |
+          sudo umount /builder || true
+          sudo lvremove -f /dev/github/runner || true
+          sudo vgremove -f github || true
+          sudo pvremove -f /dev/loop6 /dev/loop7 || true
+          sudo losetup -d /dev/loop6 /dev/loop7 || true
+          sudo rm -f /mnt/mnt.img /root.img || true
+          sudo rmdir /builder || true
