@@ -574,19 +574,19 @@ jobs:
               ;;
             "Amlogic s905x B860H")
               DEVICE_CLEAN="s905x-b860h"
-              KERNEL_VER="5.4.y_5.15.y_6.1.y"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x B860H MODSDCARD")
               DEVICE_CLEAN="s905x-b860h"
-              KERNEL_VER="5.4.y_5.15.y_6.1.y"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x HG680P")
               DEVICE_CLEAN="s905x-hg680p"
-              KERNEL_VER="5.4.y_5.15.y_6.1.y"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x HG680P MODSDCARD")
               DEVICE_CLEAN="s905x-hg680p"
-              KERNEL_VER="5.4.y_5.15.y_6.1.y"
+              KERNEL_VER="5.15.y_6.1.y_6.6.y"
               ;;
             "Amlogic s905x2 B860Hv5")
               DEVICE_CLEAN="s905x2-b860h-v5"
