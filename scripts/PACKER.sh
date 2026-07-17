@@ -281,7 +281,9 @@ download_kernel_ophub() {
         # Rename option to clean name format: e.g. boot-6.12.95-ophub.tar.gz -> boot-6.12.95.tar.gz
         local base_f=$(basename "$f")
         local new_f=$(echo "$base_f" | sed 's/-ophub//')
-        mv "$f" "$out/$new_f"
+        if [[ "$base_f" != "$new_f" ]]; then
+            mv "$f" "$out/$new_f"
+        fi
     done
 
     extract_kernel_tars "$out"
