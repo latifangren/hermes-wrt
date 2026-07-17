@@ -224,6 +224,7 @@ download_kernel_ophub() {
     local out="$1" ver="${2:-auto}"
     step "  Kernel from ophub (${ver})"
 
+    local release_tag="kernel_stable"
     local tags=""
     if [[ "${ver,,}" == "auto" || "${ver,,}" =~ ^[0-9]+\.[0-9]+\.y$ ]]; then
         tags=$(curl -sL "https://api.github.com/repos/ophub/kernel/releases/tags/kernel_stable" 2>/dev/null \
@@ -243,8 +244,14 @@ download_kernel_ophub() {
         if [[ -n "$tags" ]]; then
             resolved=$(echo "$tags" | cut -d'"' -f4 | grep -oE "${branch//./\\.}\.[0-9]+" | sort -V | tail -1 || true)
         fi
+        if [[ -z "$resolved" && "$branch" == "5.4" ]]; then
+            release_tag="kernel_flippy"
+            tags=$(curl -sL "https://api.github.com/repos/ophub/kernel/releases/tags/${release_tag}" 2>/dev/null \
+                | grep -oE '"name": "[^"]+"' || true)
+            resolved=$(echo "$tags" | cut -d'"' -f4 | grep -oE '5\.4\.[0-9]+' | sort -V | tail -1 || true)
+        fi
         [[ -z "$resolved" ]] && fail "Unable to resolve ophub kernel selector: ${ver}"
-        log "    Resolved ${ver} -> ${resolved}"
+        log "    Resolved ${ver} -> ${resolved} (${release_tag})"
         ver="$resolved"
     fi
 
@@ -252,7 +259,7 @@ download_kernel_ophub() {
     # 1. Download the unified package (e.g. 6.12.95.tar.gz)
     # 2. Extract it to staging
     # 3. Inside it, extract boot-[ver]-ophub.tar.gz, dtb-[family]-[ver]-ophub.tar.gz, and modules-[ver]-ophub.tar.gz
-    local base="https://github.com/ophub/kernel/releases/download/kernel_stable"
+    local base="https://github.com/ophub/kernel/releases/download/${release_tag}"
     local pack_file="${ver}.tar.gz"
 
     mkdir -p "$out"
