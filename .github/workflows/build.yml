@@ -705,6 +705,8 @@ jobs:
 
           echo "DEVICE_NAME=${DEVICE_CLEAN}" >> $GITHUB_ENV
           echo "VARIANT_VAL=${VARIANT_VAL}" >> $GITHUB_ENV
+          echo "KERNEL_SOURCE_NAME=${KERNEL_SRC}" >> $GITHUB_ENV
+          echo "KERNEL_VERSION_SELECTED=${KERNEL_VER}" >> $GITHUB_ENV
 
       - name: Build
         id: build
@@ -756,6 +758,8 @@ jobs:
             - Source: `${{ env.source_name }}` `${{ env.source_version }}`
             - Target: `${{ matrix.target }}`
             - Variant: `${{ env.VARIANT_VAL }}`
+            - Kernel Source: `${{ env.KERNEL_SOURCE_NAME }}`
+            - Kernel Version: `${{ env.KERNEL_VERSION_SELECTED }}`
           files: |
             out/**/*.img.gz
             out/**/*.tar.gz
