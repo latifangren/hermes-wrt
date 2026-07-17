@@ -105,20 +105,6 @@ on:
         options:
           - "Plus [ Support 23.05|24.10 ]"
           - "Basic [ Support 23.05|24.10|25.12 ]"
-      kernel_source:
-        description: 'Kernel source (Khusus TV Box; diabaikan pada x86/RPi)'
-        required: true
-        default: 'ophub'
-        type: choice
-        options:
-          - ophub
-          - armarchindo
-          - sib0ndt
-          - custom
-      kernel_version:
-        description: 'Kernel version (Khusus TV Box; diabaikan pada x86/RPi)'
-        required: true
-        default: 'auto'
       disk_size:
         description: 'Total disk image size'
         required: true
@@ -284,8 +270,8 @@ jobs:
       - name: Inject Config
         run: |
           MATRIXTARGET="${{ matrix.target }}"
-          KERNEL_SRC="${{ inputs.kernel_source }}"
-          KERNEL_VER="${{ inputs.kernel_version }}"
+          KERNEL_SRC="ophub"
+          KERNEL_VER="auto"
           DEVICE_CLEAN=""
           DEV_FAMILY=""
           TVBOX="true"
@@ -567,12 +553,16 @@ jobs:
               ;;
             "Amlogic s905x B860H MODSDCARD")
               DEVICE_CLEAN="s905x-b860h"
+              KERNEL_SRC="sib0ndt"
+              KERNEL_VER="auto"
               ;;
             "Amlogic s905x HG680P")
               DEVICE_CLEAN="s905x-hg680p"
               ;;
             "Amlogic s905x HG680P MODSDCARD")
               DEVICE_CLEAN="s905x-hg680p"
+              KERNEL_SRC="sib0ndt"
+              KERNEL_VER="auto"
               ;;
             "Amlogic s905x2 B860Hv5")
               DEVICE_CLEAN="s905x2-b860h-v5"
