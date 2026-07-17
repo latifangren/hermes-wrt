@@ -97,15 +97,14 @@ on:
           - OrangePi 5B
           - H96-Max-M2
           - NanoPi-M5
-      variant:
-        description: 'Firmware variant'
+      build_version:
+        description: "Select Build Version"
         required: true
-        default: 'simple'
+        default: "Plus [ Support 23.05|24.10 ]"
         type: choice
         options:
-          - full
-          - simple
-          - minimal
+          - "Plus [ Support 23.05|24.10 ]"
+          - "Basic [ Support 23.05|24.10|25.12 ]"
       kernel_source:
         description: 'Kernel source (Khusus TV Box; diabaikan pada x86/RPi)'
         required: true
@@ -634,10 +633,23 @@ jobs:
               ;;
           esac
 
+          # Map build version to variant
+          BUILD_VER="${{ inputs.build_version }}"
+          if [[ "$BUILD_VER" == *"Plus"* ]]; then
+            ver_major=$(echo "${source_version}" | cut -d'.' -f1)
+            if [[ "$ver_major" -ge 25 ]]; then
+              echo "ERROR: Plus build tidak didukung untuk OpenWrt/ImmortalWrt 25 ke atas (hanya support 24 kebawah)."
+              exit 1
+            fi
+            VARIANT_VAL="full"
+          else
+            VARIANT_VAL="simple"
+          fi
+
           cat >> hermes.conf << EOF
           KERNEL_SOURCE=${KERNEL_SRC}
           KERNEL_VERSION=${KERNEL_VER}
-          BUILD_VARIANT=${{ inputs.variant }}
+          BUILD_VARIANT=${VARIANT_VAL}
           DISK_SIZE=${{ inputs.disk_size }}
           TUNNEL_TYPE=${{ inputs.tunnel_type }}
           ENABLE_MODEM=${{ inputs.enable_modem }}
@@ -659,12 +671,13 @@ jobs:
           fi
 
           echo "DEVICE_NAME=${DEVICE_CLEAN}" >> $GITHUB_ENV
+          echo "VARIANT_VAL=${VARIANT_VAL}" >> $GITHUB_ENV
 
       - name: Build
         id: build
         run: |
           chmod +x imagebuilder.sh
-          if sudo ./imagebuilder.sh "${source_name}:${source_version}" "${DEVICE_NAME}" "${{ inputs.variant }}"; then
+          if sudo ./imagebuilder.sh "${source_name}:${source_version}" "${DEVICE_NAME}" "${VARIANT_VAL}"; then
             echo "status=success" >> $GITHUB_OUTPUT
           else
             echo "status=failed" >> $GITHUB_OUTPUT
@@ -675,7 +688,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: hermes-wrt-${{ matrix.target }}-${{ inputs.variant }}
+          name: hermes-wrt-${{ matrix.target }}-${{ env.VARIANT_VAL }}
           path: out/*
           retention-days: 7
 
@@ -683,7 +696,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: build-logs-${{ matrix.target }}-${{ inputs.variant }}
+          name: build-logs-${{ matrix.target }}-${{ env.VARIANT_VAL }}
           path: build_*.log
           retention-days: 3
 
